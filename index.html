@@ -16,12 +16,28 @@
     --surface2: #222;
     --border: #2a2a2a;
     --accent: #c8f060;
+    --accent-text: #0f0f0f;
     --text: #f0f0f0;
     --muted: #555;
     --muted2: #888;
     --correct: #60f0a0;
     --wrong: #f06060;
     --srs-color: #f0c060;
+  }
+
+  html.light {
+    --bg: #f4f4f0;
+    --surface: #ffffff;
+    --surface2: #ebebeb;
+    --border: #d8d8d8;
+    --accent: #5a9e00;
+    --accent-text: #ffffff;
+    --text: #111111;
+    --muted: #aaaaaa;
+    --muted2: #666666;
+    --correct: #2a9a60;
+    --wrong: #d94040;
+    --srs-color: #b07800;
   }
 
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
@@ -327,7 +343,7 @@
   .start-btn {
     margin-top: auto;
     background: var(--accent);
-    color: #0f0f0f;
+    color: var(--accent-text);
     border: none;
     border-radius: 13px;
     padding: 17px;
@@ -344,15 +360,15 @@
 
   /* SRS info box */
   .srs-info {
-    background: #1a1800;
-    border: 1px solid #3a3200;
+    background: var(--surface2);
+    border: 1px solid var(--border);
     border-radius: 10px;
     padding: 12px 14px;
     font-family: 'DM Mono', monospace;
     font-size: 11px;
     color: var(--srs-color);
     line-height: 1.6;
-    opacity: 0.85;
+    opacity: 0.9;
   }
 
   /* ═══════════════════════════════════════
@@ -585,7 +601,7 @@
 
   .key.key-submit {
     background: var(--accent);
-    color: #0f0f0f;
+    color: var(--accent-text);
     font-size: 14px;
     font-weight: 700;
     border-color: var(--accent);
@@ -593,7 +609,7 @@
     letter-spacing: 0.04em;
   }
 
-  .key.key-submit:active { background: #b0d840; }
+  .key.key-submit:active { background: var(--accent); filter: brightness(0.88); }
 
   /* timer urgent */
   .urgent { color: var(--wrong) !important; }
@@ -692,7 +708,7 @@
   .btn-primary {
     flex:2;
     background: var(--accent);
-    color: #0f0f0f;
+    color: var(--accent-text);
     border: none;
     border-radius: 11px;
     padding: 14px;
@@ -742,6 +758,7 @@
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <div id="streakDisplay" onclick="showScreen('statsScreen')" style="display:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--accent);cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px"></div>
+      <div onclick="toggleTheme()" id="themeBtn" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px">☀️</div>
       <div onclick="showScreen('statsScreen')" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px">📊</div>
       <div onclick="openReminderSettings()" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px" id="reminderBtn">🔔</div>
     </div>
@@ -882,22 +899,39 @@
     <!-- Settings -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px">
       <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:14px">Settings</div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
+
+      <!-- Haptics -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <div>
           <div style="font-size:14px;font-weight:600">Haptic Feedback</div>
           <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted2);margin-top:2px">vibration on keypresses</div>
         </div>
         <div id="hapticsToggle" onclick="toggleHaptics()" style="width:44px;height:26px;border-radius:13px;cursor:pointer;transition:background 0.2s;position:relative;flex-shrink:0">
-          <div id="hapticsThumb" style="position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left 0.2s"></div>
+          <div id="hapticsThumb" style="position:absolute;top:3px;width:20px;height:20px;border-radius:50%;transition:left 0.2s"></div>
         </div>
       </div>
+
+      <!-- Divider -->
+      <div style="height:1px;background:var(--border);margin-bottom:16px"></div>
+
+      <!-- Theme -->
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:14px;font-weight:600">Light Theme</div>
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted2);margin-top:2px">switch between dark and light</div>
+        </div>
+        <div id="themeToggle" onclick="toggleTheme()" style="width:44px;height:26px;border-radius:13px;cursor:pointer;transition:background 0.2s;position:relative;flex-shrink:0">
+          <div id="themeThumb" style="position:absolute;top:3px;width:20px;height:20px;border-radius:50%;transition:left 0.2s"></div>
+        </div>
+      </div>
+
     </div>
 
   </div>
 </div>
 
 <!-- ═══ REMINDER MODAL ═══ -->
-<div id="reminderModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;align-items:flex-end;justify-content:center">
+<div id="reminderModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100;align-items:flex-end;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;padding:28px 22px 40px;width:100%;max-width:480px">
     <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:16px">Daily Reminder</div>
     <div style="font-size:15px;font-weight:600;margin-bottom:6px">When should we remind you?</div>
@@ -1870,6 +1904,44 @@ function getOverdueCount(topicId, pool) {
 //  STATS SCREEN
 // ═══════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════
+//  THEME
+// ═══════════════════════════════════════════════════════
+
+const THEME_KEY = 'mathflow_theme_v3';
+
+function isLightTheme() {
+  return localStorage.getItem(THEME_KEY) === 'light';
+}
+
+function applyTheme(light) {
+  document.documentElement.classList.toggle('light', light);
+  // Update theme-color meta for browser chrome
+  document.querySelector('meta[name="theme-color"]').setAttribute(
+    'content', light ? '#f4f4f0' : '#0f0f0f'
+  );
+  // Update home header button
+  const btn = document.getElementById('themeBtn');
+  if(btn) btn.textContent = light ? '🌙' : '☀️';
+  updateThemeToggle();
+}
+
+function toggleTheme() {
+  const light = !isLightTheme();
+  localStorage.setItem(THEME_KEY, light ? 'light' : 'dark');
+  applyTheme(light);
+}
+
+function updateThemeToggle() {
+  const on = isLightTheme();
+  const toggle = document.getElementById('themeToggle');
+  const thumb  = document.getElementById('themeThumb');
+  if(!toggle) return;
+  toggle.style.background = on ? 'var(--accent)' : 'var(--border)';
+  thumb.style.left = on ? '21px' : '3px';
+  thumb.style.background = on ? '#fff' : '#888';
+}
+
 function toggleHaptics() {
   const enabled = hapticsEnabled();
   localStorage.setItem(HAPTICS_KEY, enabled ? 'off' : 'on');
@@ -1884,7 +1956,8 @@ function updateHapticsToggle() {
   if(!toggle) return;
   toggle.style.background = on ? 'var(--accent)' : 'var(--border)';
   thumb.style.left = on ? '21px' : '3px';
-  thumb.style.background = on ? '#0f0f0f' : '#888';
+  thumb.style.background = on ? '#fff' : '#888';
+  updateThemeToggle();
 }
 
 function buildStatsScreen() {
@@ -2165,6 +2238,7 @@ if('serviceWorker' in navigator) {
 buildHomeScreen();
 updateStreakDisplay();
 initReminder();
+applyTheme(isLightTheme());
 
 // Set initial screen positions
 document.querySelectorAll('.screen').forEach(s => {
