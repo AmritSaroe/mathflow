@@ -1,0 +1,2178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MathFlow</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0f0f0f">
+<link rel="apple-touch-icon" href="./icon.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Sora:wght@300;400;600;700&display=swap');
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --surface2: #222;
+    --border: #2a2a2a;
+    --accent: #c8f060;
+    --text: #f0f0f0;
+    --muted: #555;
+    --muted2: #888;
+    --correct: #60f0a0;
+    --wrong: #f06060;
+    --srs-color: #f0c060;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+
+  html, body {
+    overscroll-behavior: none;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    position: fixed;
+    width: 100%;
+  }
+
+  /* Screen container — clips all screens */
+  .screen-container {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  .screen {
+    display: flex;
+    min-height: 100dvh;
+    flex-direction: column;
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--bg);
+    /* Start off-screen to the right */
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .screen.active {
+    transform: translateX(0);
+    z-index: 2;
+  }
+
+  .screen.slide-out {
+    transform: translateX(-30%);
+    z-index: 1;
+  }
+
+  /* Home screen — base layer, never slides out fully */
+  #homeScreen {
+    transform: translateX(0);
+    z-index: 1;
+    padding-bottom: 48px;
+  }
+
+  #homeScreen.slide-out {
+    transform: translateX(-30%);
+    padding-bottom: 48px;
+  }
+
+  /* ═══════════════════════════════════════
+     HOME SCREEN
+  ═══════════════════════════════════════ */
+
+  .home-header {
+    padding: 26px 22px 18px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top:0;
+    background: var(--bg);
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .home-header h1 {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+
+  .home-header p {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    margin-top: 3px;
+  }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 22px 22px 8px;
+  }
+
+  .card-list {
+    padding: 0 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .topic-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    padding: 14px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    transition: background 0.12s, transform 0.08s;
+  }
+
+  .topic-card:active { transform: scale(0.98); background: var(--surface2); }
+
+  .topic-icon {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    color: var(--accent);
+    min-width: 32px;
+    text-align: center;
+  }
+
+  .topic-info { flex:1; }
+
+  .topic-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .topic-sub {
+    font-size: 11px;
+    color: var(--muted2);
+    margin-top: 2px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .topic-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  .topic-arrow { color: var(--muted); font-size: 16px; }
+
+  .srs-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--srs-color);
+    letter-spacing: 0.1em;
+    opacity: 0.8;
+  }
+
+  /* ═══════════════════════════════════════
+     SUBTOPIC SCREEN
+  ═══════════════════════════════════════ */
+  #subtopicScreen { padding-bottom: 40px; }
+
+  .nav-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky; top:0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  .back-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted2);
+    font-size: 20px;
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .nav-header-info h2 { font-size: 15px; font-weight: 600; }
+  .nav-header-info p {
+    font-size: 11px; color: var(--muted2);
+    font-family: 'DM Mono', monospace; margin-top: 2px;
+  }
+
+  .subtopic-card {
+    margin: 0 14px 7px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    padding: 14px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background 0.12s, transform 0.08s;
+  }
+
+  .subtopic-card:active { transform: scale(0.98); background: var(--surface2); }
+
+  .subtopic-left { flex:1; }
+  .subtopic-name { font-size: 14px; font-weight: 600; }
+  .subtopic-desc {
+    font-size: 11px; color: var(--muted2);
+    font-family: 'DM Mono', monospace; margin-top: 2px;
+  }
+
+  .subtopic-right {
+    display: flex; flex-direction: column;
+    align-items: flex-end; gap: 4px;
+  }
+
+  .subtopic-arrow { color: var(--muted); font-size: 16px; }
+
+  .mastery-bar-wrap {
+    width: 60px; height: 3px;
+    background: var(--border);
+    border-radius: 2px; overflow: hidden;
+  }
+
+  .mastery-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  /* ═══════════════════════════════════════
+     MODE SCREEN
+  ═══════════════════════════════════════ */
+  #modeScreen {}
+
+  .mode-body {
+    padding: 22px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+  }
+
+  .mode-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.12s;
+  }
+
+  .mode-card:active { background: var(--surface2); }
+  .mode-card.selected { border-color: var(--accent); }
+
+  .mode-card-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .mode-card-desc {
+    font-size: 11px; color: var(--muted2);
+    font-family: 'DM Mono', monospace; line-height: 1.6;
+  }
+
+  .timer-options {
+    display: none; gap: 9px; margin-top: 12px;
+  }
+  .timer-options.show { display: flex; }
+
+  .timer-btn {
+    flex:1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    color: var(--muted2);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    padding: 11px 0;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.12s;
+  }
+
+  .timer-btn.selected {
+    background: var(--accent);
+    color: #0f0f0f;
+    border-color: var(--accent);
+    font-weight: 500;
+  }
+
+  .start-btn {
+    margin-top: auto;
+    background: var(--accent);
+    color: #0f0f0f;
+    border: none;
+    border-radius: 13px;
+    padding: 17px;
+    font-family: 'Sora', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    opacity: 0.35;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+
+  .start-btn.ready { opacity: 1; pointer-events: all; }
+
+  /* SRS info box */
+  .srs-info {
+    background: #1a1800;
+    border: 1px solid #3a3200;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--srs-color);
+    line-height: 1.6;
+    opacity: 0.85;
+  }
+
+  /* ═══════════════════════════════════════
+     PRACTICE SCREEN — two-zone layout
+  ═══════════════════════════════════════ */
+  #practiceScreen {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 0;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .practice-header {
+    position: fixed;
+    top:0; left:0; right:0;
+    padding: 14px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+    height: 52px;
+  }
+
+  .practice-topic {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .practice-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted2);
+  }
+
+  .progress-bar {
+    position: fixed;
+    top: 52px; left:0;
+    height: 2px;
+    background: var(--accent);
+    transition: width 0.35s ease;
+    z-index: 11;
+  }
+
+  /* Top zone — question + answer, fills remaining space above keypad */
+  .practice-top {
+    position: fixed;
+    top: 54px;
+    left: 0; right: 0;
+    bottom: calc(4 * 68px + 5 * 8px + 16px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px;
+    gap: 16px;
+    overflow: hidden;
+  }
+
+  .question-type-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+    min-height: 14px;
+  }
+
+  .question {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(38px, 11vw, 64px);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    line-height: 1.1;
+    text-align: center;
+    transition: color 0.12s;
+    word-break: break-all;
+    width: 100%;
+  }
+
+  .question.flash-correct { color: var(--correct); }
+  .question.flash-wrong { color: var(--wrong); }
+
+  /* Wrong answer reveal — shows correct answer large in Learn mode */
+  .answer-reveal {
+    position: fixed;
+    top: 54px; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: var(--bg);
+    z-index: 20;
+    animation: revealFade 0.18s ease;
+  }
+
+  @keyframes revealFade {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .reveal-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--wrong);
+  }
+
+  .reveal-question {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(22px, 6vw, 32px);
+    color: var(--muted2);
+    font-weight: 400;
+  }
+
+  .reveal-answer {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(64px, 18vw, 96px);
+    font-weight: 300;
+    color: var(--accent);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .reveal-hint {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  .answer-row { width: 100%; max-width: 380px; }
+
+  .answer-display {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(28px, 8vw, 44px);
+    font-weight: 300;
+    color: var(--accent);
+    min-height: 50px;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border);
+    width: 100%;
+    text-align: center;
+    padding-bottom: 6px;
+    transition: border-color 0.18s, color 0.18s;
+  }
+
+  .answer-display.has-value { border-color: var(--accent); }
+
+  .answer-display.wrong {
+    border-color: var(--wrong);
+    color: var(--wrong);
+    animation: shake 0.28s ease;
+  }
+
+  @keyframes shake {
+    0%,100% { transform:translateX(0); }
+    25% { transform:translateX(-5px); }
+    75% { transform:translateX(5px); }
+  }
+
+  .feedback {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    min-height: 16px;
+    letter-spacing: 0.05em;
+    margin-top: 5px;
+    text-align: center;
+  }
+
+  .feedback.correct { color: var(--correct); }
+  .feedback.wrong { color: var(--wrong); }
+
+  .score-row {
+    display: flex;
+    gap: 18px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+
+  .score-row .val { color: var(--text); font-weight: 500; }
+
+  /* Bottom zone — keypad pinned to bottom */
+  .practice-bottom {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    padding: 8px 12px 16px;
+    background: var(--bg);
+  }
+
+  /* Numpad */
+  .numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  .key {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 400;
+    height: 68px;
+    cursor: pointer;
+    transition: background 0.08s, transform 0.07s;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .key:active { background: var(--surface2); transform: scale(0.94); }
+  .key.key-del { font-size: 16px; color: var(--muted); }
+
+  .key.key-submit {
+    background: var(--accent);
+    color: #0f0f0f;
+    font-size: 14px;
+    font-weight: 700;
+    border-color: var(--accent);
+    font-family: 'Sora', sans-serif;
+    letter-spacing: 0.04em;
+  }
+
+  .key.key-submit:active { background: #b0d840; }
+
+  /* timer urgent */
+  .urgent { color: var(--wrong) !important; }
+
+  /* ═══════════════════════════════════════
+     RESULT SCREEN
+  ═══════════════════════════════════════ */
+  #resultScreen {
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+  }
+
+  .result-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 340px;
+  }
+
+  .result-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .result-big {
+    font-family: 'DM Mono', monospace;
+    font-size: 64px;
+    color: var(--accent);
+    font-weight: 300;
+    line-height: 1;
+    margin: 4px 0;
+  }
+
+  .result-topic {
+    font-size: 12px;
+    color: var(--muted2);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+
+  .result-stats {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+
+  .stat-label { color: var(--muted); }
+  .stat-val { color: var(--text); font-weight: 500; }
+
+  .result-message {
+    font-size: 12px;
+    color: var(--muted2);
+    font-family: 'DM Mono', monospace;
+    margin: 6px 0 10px;
+    text-align: center;
+  }
+
+  .result-btns {
+    display: flex;
+    gap: 9px;
+    width: 100%;
+  }
+
+  .btn-secondary {
+    flex:1;
+    background: var(--surface);
+    color: var(--muted2);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    padding: 14px;
+    font-family: 'Sora', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    flex:2;
+    background: var(--accent);
+    color: #0f0f0f;
+    border: none;
+    border-radius: 11px;
+    padding: 14px;
+    font-family: 'Sora', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .first-label {
+    padding: 14px 22px 6px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .time-slot {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 0;
+    text-align: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--muted2);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+
+  .time-slot.selected {
+    background: var(--accent);
+    color: #0f0f0f;
+    border-color: var(--accent);
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+<div class="screen-container">
+<div class="screen active" id="homeScreen">
+  <div class="home-header">
+    <div>
+      <h1>MathFlow</h1>
+      <p id="homeSubtitle">pick a topic to practise</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div id="streakDisplay" onclick="showScreen('statsScreen')" style="display:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--accent);cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px"></div>
+      <div onclick="showScreen('statsScreen')" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px">📊</div>
+      <div onclick="openReminderSettings()" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px" id="reminderBtn">🔔</div>
+    </div>
+  </div>
+
+  <div class="section-label">Addition</div>
+  <div class="card-list" id="additionCards"></div>
+
+  <div class="section-label">Subtraction</div>
+  <div class="card-list" id="subtractionCards"></div>
+
+  <div class="section-label">Multiplication</div>
+  <div class="card-list" id="multiplicationCards"></div>
+
+  <div class="section-label">Memory & Recall</div>
+  <div class="card-list" id="memoryCards"></div>
+</div>
+
+<!-- ═══ SUBTOPIC ═══ -->
+<div class="screen" id="subtopicScreen">
+  <div class="nav-header">
+    <div class="back-btn" onclick="showScreen('homeScreen')">‹</div>
+    <div class="nav-header-info">
+      <h2 id="subtopicTitle">—</h2>
+      <p id="subtopicSub">—</p>
+    </div>
+  </div>
+  <div style="height:12px"></div>
+  <div id="subtopicList"></div>
+</div>
+
+<!-- ═══ MODE ═══ -->
+<div class="screen" id="modeScreen">
+  <div class="nav-header">
+    <div class="back-btn" id="modeBackBtn">‹</div>
+    <div class="nav-header-info">
+      <h2 id="modeTitle">—</h2>
+      <p id="modeSub">—</p>
+    </div>
+  </div>
+  <div class="mode-body">
+    <div class="mode-card" id="learnCard" onclick="selectMode('learn')">
+      <div class="mode-card-title">📖 Learn</div>
+      <div class="mode-card-desc">20 questions · feedback shown<br>use when building knowledge</div>
+    </div>
+    <div class="mode-card" id="practiceCard" onclick="selectMode('practice')">
+      <div class="mode-card-title">⚡ Practice</div>
+      <div class="mode-card-desc">timed · minimal feedback · builds rhythm<br>use once you know the material</div>
+      <div class="timer-options" id="timerOptions">
+        <div class="timer-btn" onclick="selectTimer(event,2)">2 min</div>
+        <div class="timer-btn" onclick="selectTimer(event,5)">5 min</div>
+        <div class="timer-btn" onclick="selectTimer(event,10)">10 min</div>
+      </div>
+    </div>
+    <div class="srs-info" id="srsInfo" style="display:none">
+      ✦ smart recall active — questions weighted by your weak spots
+    </div>
+    <div style="flex:1"></div>
+    <button class="start-btn" id="startBtn" onclick="startSession()">Start →</button>
+  </div>
+</div>
+
+<!-- ═══ PRACTICE ═══ -->
+<div class="screen" id="practiceScreen">
+  <div class="practice-header">
+    <div class="practice-topic" id="practiceTopicLabel">—</div>
+    <div class="practice-meta" id="practiceMeta">—</div>
+  </div>
+  <div class="progress-bar" id="progressBar" style="width:0%"></div>
+
+  <!-- Top zone: question + answer -->
+  <div class="practice-top">
+    <div class="question-type-label" id="questionTypeLabel">&nbsp;</div>
+    <div class="question" id="question">—</div>
+    <div class="answer-row">
+      <div class="answer-display" id="answerDisplay">_</div>
+      <div class="feedback" id="feedback">&nbsp;</div>
+    </div>
+    <div class="score-row">
+      <div>correct <span class="val" id="correctCount">0</span></div>
+      <div>streak <span class="val" id="streakVal">0</span></div>
+    </div>
+  </div>
+
+  <!-- Bottom zone: numpad -->
+  <div class="practice-bottom">
+    <div class="numpad" id="numpad">
+      <div class="key" data-val="1">1</div>
+      <div class="key" data-val="2">2</div>
+      <div class="key" data-val="3">3</div>
+      <div class="key" data-val="4">4</div>
+      <div class="key" data-val="5">5</div>
+      <div class="key" data-val="6">6</div>
+      <div class="key" data-val="7">7</div>
+      <div class="key" data-val="8">8</div>
+      <div class="key" data-val="9">9</div>
+      <div class="key key-del" data-val="del">⌫</div>
+      <div class="key" data-val="0">0</div>
+      <div class="key key-submit" data-val="submit">OK</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STATS ═══ -->
+<div class="screen" id="statsScreen">
+  <div class="nav-header">
+    <div class="back-btn" onclick="showScreen('homeScreen')">‹</div>
+    <div class="nav-header-info">
+      <h2>Your Progress</h2>
+      <p>activity & streaks</p>
+    </div>
+  </div>
+  <div style="padding:20px 18px;display:flex;flex-direction:column;gap:16px">
+
+    <!-- Streak card -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:12px">Daily Streak</div>
+      <div style="display:flex;align-items:baseline;gap:10px">
+        <div id="statsStreakNum" style="font-family:'DM Mono',monospace;font-size:56px;color:var(--accent);font-weight:300;line-height:1">0</div>
+        <div style="font-family:'DM Mono',monospace;font-size:13px;color:var(--muted2)">days</div>
+      </div>
+      <div id="statsStreakMsg" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-top:6px">practise today to start your streak</div>
+    </div>
+
+    <!-- Weekly chart -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:16px">Last 7 Days</div>
+      <div id="weeklyChart" style="display:flex;align-items:flex-end;gap:6px;height:80px"></div>
+      <div id="weeklyLabels" style="display:flex;gap:6px;margin-top:6px"></div>
+    </div>
+
+    <!-- All-time stats -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:12px">All Time</div>
+      <div id="allTimeStats" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <!-- Settings -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:14px">Settings</div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:14px;font-weight:600">Haptic Feedback</div>
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted2);margin-top:2px">vibration on keypresses</div>
+        </div>
+        <div id="hapticsToggle" onclick="toggleHaptics()" style="width:44px;height:26px;border-radius:13px;cursor:pointer;transition:background 0.2s;position:relative;flex-shrink:0">
+          <div id="hapticsThumb" style="position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left 0.2s"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ REMINDER MODAL ═══ -->
+<div id="reminderModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:100;align-items:flex-end;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;padding:28px 22px 40px;width:100%;max-width:480px">
+    <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:16px">Daily Reminder</div>
+    <div style="font-size:15px;font-weight:600;margin-bottom:6px">When should we remind you?</div>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted2);margin-bottom:20px">a notification will appear daily at this time</div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px" id="timeSlots">
+      <div class="time-slot" data-time="07:00">7:00 AM</div>
+      <div class="time-slot" data-time="08:00">8:00 AM</div>
+      <div class="time-slot" data-time="12:00">12:00 PM</div>
+      <div class="time-slot" data-time="17:00">5:00 PM</div>
+      <div class="time-slot" data-time="19:00">7:00 PM</div>
+      <div class="time-slot" data-time="21:00">9:00 PM</div>
+    </div>
+
+    <button id="reminderSaveBtn" onclick="saveReminder()" style="width:100%;background:var(--accent);color:#0f0f0f;border:none;border-radius:12px;padding:16px;font-family:'Sora',sans-serif;font-size:15px;font-weight:700;cursor:pointer;opacity:0.4;pointer-events:none">Set Reminder</button>
+    <button onclick="closeReminderModal()" style="width:100%;background:none;border:none;color:var(--muted2);font-family:'Sora',sans-serif;font-size:13px;padding:14px;cursor:pointer;margin-top:4px">Cancel</button>
+  </div>
+</div>
+<div class="screen" id="resultScreen">
+  <div class="result-inner">
+    <div class="result-label">Session complete</div>
+    <div class="result-big" id="resultBig">—</div>
+    <div class="result-topic" id="resultTopic">—</div>
+    <div class="result-stats" id="resultStats"></div>
+    <div class="result-message" id="resultMessage">—</div>
+    <div class="result-btns">
+      <button class="btn-secondary" onclick="showScreen('homeScreen')">Home</button>
+      <button class="btn-primary" onclick="startSession()">Again →</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- end screen-container -->
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  TOPIC DEFINITIONS
+// ═══════════════════════════════════════════════════════
+
+const TOPICS = {
+  // ── ADDITION ──
+  add_1d1d: {
+    name: '1D + 1D', section: 'addition',
+    desc: 'single digit foundations',
+    srs: true,
+    generate: generateAdd1D1D,
+    pool: buildAdd1D1DPool()
+  },
+  add_2d2d: {
+    name: '2D + 2D', section: 'addition',
+    desc: 'e.g. 47 + 63',
+    srs: false,
+    generate: generateAdd2D2D
+  },
+  add_xy0_2d: {
+    name: 'XY0 + 2D', section: 'addition',
+    desc: 'e.g. 320 + 47',
+    srs: false,
+    generate: generateAddXY02D
+  },
+  add_3d3d: {
+    name: '3D + 3D', section: 'addition',
+    desc: 'e.g. 473 + 628',
+    srs: false,
+    generate: generateAdd3D3D
+  },
+
+  // ── SUBTRACTION ──
+  sub_1d1d: {
+    name: 'Single Digit Facts', section: 'subtraction',
+    desc: 'foundations e.g. 9−3, 8−5',
+    srs: true,
+    generate: generateSub1D1D,
+    pool: buildSub1D1DPool()
+  },
+  sub_comp10: {
+    name: 'Complements to 10', section: 'subtraction',
+    desc: '10−? e.g. 10−7=3',
+    srs: true,
+    generate: generateComp10,
+    pool: buildComp10Pool()
+  },
+  sub_mul10: {
+    name: 'Tens minus 1D', section: 'subtraction',
+    desc: 'e.g. 50−7, 80−3',
+    srs: true,
+    generate: generateMul10,
+    pool: buildMul101DPool()
+  },
+  sub_2d2d: {
+    name: '2D − 2D', section: 'subtraction',
+    desc: 'e.g. 73 − 28',
+    srs: false,
+    generate: generateSub2D2D
+  },
+  sub_3d2d: {
+    name: '3D − 2D', section: 'subtraction',
+    desc: 'e.g. 473 − 58',
+    srs: false,
+    generate: generateSub3D2D
+  },
+  sub_3d3d: {
+    name: '3D − 3D', section: 'subtraction',
+    desc: 'e.g. 731 − 248',
+    srs: false,
+    generate: generateSub3D3D
+  },
+
+  // ── MULTIPLICATION ──
+  mul_1d1d: {
+    name: '1D × 1D', section: 'multiplication',
+    desc: 'e.g. 7 × 8',
+    srs: true,
+    generate: generateMul1D1D,
+    pool: buildMul1D1DPool()
+  },
+  mul_2d1d: {
+    name: '2D × 1D', section: 'multiplication',
+    desc: 'both ways e.g. 47×6 and 6×47',
+    srs: false,
+    generate: generateMul2D1D
+  },
+  mul_2d2d: {
+    name: '2D × 2D', section: 'multiplication',
+    desc: 'e.g. 47 × 63',
+    srs: false,
+    generate: generateMul2D2D
+  },
+
+  // ── MEMORY & RECALL ──
+  tables_2_9: {
+    name: 'Tables 2–9', section: 'memory',
+    desc: 'all 3 directions',
+    srs: true,
+    generate: generateTables,
+    pool: buildTablesPool(2, 9),
+    tableRange: [2,9]
+  },
+  tables_11_19: {
+    name: 'Tables 11–19', section: 'memory',
+    desc: 'all 3 directions',
+    srs: true,
+    generate: generateTables,
+    pool: buildTablesPool(11, 19),
+    tableRange: [11,19]
+  },
+  tables_odd20s: {
+    name: 'Tables 21–29 (odd)', section: 'memory',
+    desc: '21,23,25,27,29 · all 3 directions',
+    srs: true,
+    generate: generateTables,
+    pool: buildTablesPool(null, null, [21,23,25,27,29]),
+    tableNums: [21,23,25,27,29]
+  },
+  tables_even20s: {
+    name: 'Tables 22–28 (even)', section: 'memory',
+    desc: '22,24,26,28 · all 3 directions',
+    srs: true,
+    generate: generateTables,
+    pool: buildTablesPool(null, null, [22,24,26,28]),
+    tableNums: [22,24,26,28]
+  },
+  squares: {
+    name: 'Squares', section: 'memory',
+    desc: 'n² · 2 to 40',
+    srs: true,
+    generate: generateSquares,
+    pool: buildSquaresPool()
+  },
+  cubes: {
+    name: 'Cubes', section: 'memory',
+    desc: 'n³ · 2 to 20',
+    srs: true,
+    generate: generateCubes,
+    pool: buildCubesPool()
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+//  POOL BUILDERS
+// ═══════════════════════════════════════════════════════
+
+function buildAdd1D1DPool() {
+  const pool = [];
+  for(let a=2; a<=9; a++)
+    for(let b=2; b<=9; b++)
+      pool.push({a,b});
+  return pool;
+}
+
+function buildSub1D1DPool() {
+  const pool = [];
+  for(let a=3; a<=9; a++)
+    for(let b=2; b<a; b++)
+      pool.push({a,b});
+  return pool;
+}
+
+function buildComp10Pool() {
+  const pool = [];
+  for(let b=1; b<=9; b++)
+    pool.push({b});
+  return pool;
+}
+
+function buildMul101DPool() {
+  const pool = [];
+  for(let tens=2; tens<=9; tens++)
+    for(let b=2; b<=9; b++)
+      pool.push({tens, b});
+  return pool;
+}
+
+function buildMul1D1DPool() {
+  const pool = [];
+  for(let a=3; a<=9; a++)
+    for(let b=3; b<=9; b++)
+      pool.push({a,b});
+  return pool;
+}
+
+function buildTablesPool(min, max, specific) {
+  const nums = specific || Array.from({length: max-min+1}, (_,i)=>i+min);
+  const pool = [];
+  for(const t of nums)
+    for(let b=2; b<=9; b++)
+      pool.push({t,b});
+  return pool;
+}
+
+function buildSquaresPool() {
+  const pool = [];
+  for(let n=2; n<=40; n++) pool.push({n});
+  return pool;
+}
+
+function buildCubesPool() {
+  const pool = [];
+  for(let n=2; n<=20; n++) pool.push({n});
+  return pool;
+}
+
+// ═══════════════════════════════════════════════════════
+//  QUESTION GENERATORS
+// ═══════════════════════════════════════════════════════
+
+function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function digits(n){ return String(Math.abs(n)).length; }
+
+// Addition
+function generateAdd1D1D(item) {
+  const {a,b} = item;
+  const ans = a+b;
+  return { display:`${a} + ${b}`, answer:ans, typeLabel:'addition', maxDigits:digits(ans) };
+}
+
+function generateAdd2D2D() {
+  const a=rand(12,99), b=rand(12,99), ans=a+b;
+  return { display:`${a} + ${b}`, answer:ans, typeLabel:'addition', maxDigits:digits(ans) };
+}
+
+function generateAddXY02D() {
+  const xy=rand(11,99), a=xy*10, b=rand(12,99), ans=a+b;
+  return { display:`${a} + ${b}`, answer:ans, typeLabel:'addition', maxDigits:digits(ans) };
+}
+
+function generateAdd3D3D() {
+  const a=rand(112,899), b=rand(112,899), ans=a+b;
+  return { display:`${a} + ${b}`, answer:ans, typeLabel:'addition', maxDigits:digits(ans) };
+}
+
+// Subtraction
+function generateSub1D1D(item) {
+  const {a,b} = item, ans=a-b;
+  return { display:`${a} − ${b}`, answer:ans, typeLabel:'subtraction', maxDigits:digits(ans) };
+}
+
+function generateComp10(item) {
+  const {b} = item, ans=10-b;
+  return { display:`10 − ${b}`, answer:ans, typeLabel:'complement to 10', maxDigits:digits(ans) };
+}
+
+function generateMul10(item) {
+  const {tens,b} = item, a=tens*10, ans=a-b;
+  return { display:`${a} − ${b}`, answer:ans, typeLabel:'tens − 1D', maxDigits:digits(ans) };
+}
+
+function generateSub2D2D() {
+  let a=rand(21,99), b=rand(11,a-5);
+  return { display:`${a} − ${b}`, answer:a-b, typeLabel:'subtraction', maxDigits:digits(a-b) };
+}
+
+function generateSub3D2D() {
+  const b=rand(11,99), a=rand(b+10, 899);
+  return { display:`${a} − ${b}`, answer:a-b, typeLabel:'subtraction', maxDigits:digits(a-b) };
+}
+
+function generateSub3D3D() {
+  const b=rand(112,699), a=rand(b+10, 899);
+  return { display:`${a} − ${b}`, answer:a-b, typeLabel:'subtraction', maxDigits:digits(a-b) };
+}
+
+// Multiplication
+function generateMul1D1D(item) {
+  const {a,b}=item, ans=a*b;
+  return { display:`${a} × ${b}`, answer:ans, typeLabel:'multiplication', maxDigits:digits(ans) };
+}
+
+function generateMul2D1D() {
+  const td=rand(12,99), od=rand(3,9);
+  const fwd=rand(0,1)===0;
+  const ans=td*od;
+  const display = fwd ? `${td} × ${od}` : `${od} × ${td}`;
+  return { display, answer:ans, typeLabel:'multiplication', maxDigits:digits(ans) };
+}
+
+function generateMul2D2D() {
+  const a=rand(12,49), b=rand(12,49), ans=a*b;
+  return { display:`${a} × ${b}`, answer:ans, typeLabel:'multiplication', maxDigits:digits(ans) };
+}
+
+// Tables
+function generateTables(item) {
+  const {t,b}=item;
+  const ans=t*b;
+  const type=rand(0,1); // 0=forward, 1=missing
+  if(type===0) return { display:`${t} × ${b}`, answer:ans, typeLabel:'tables', maxDigits:digits(ans) };
+  return { display:`${t} × ? = ${ans}`, answer:b, typeLabel:'tables', maxDigits:digits(b) };
+}
+
+// Squares
+function generateSquares(item) {
+  const {n}=item, ans=n*n;
+  return { display:`${n}²`, answer:ans, typeLabel:'square', maxDigits:digits(ans) };
+}
+
+// Cubes
+function generateCubes(item) {
+  const {n}=item, ans=n*n*n;
+  return { display:`${n}³`, answer:ans, typeLabel:'cube', maxDigits:digits(ans) };
+}
+
+// ═══════════════════════════════════════════════════════
+//  SRS ENGINE (SM-2 simplified)
+// ═══════════════════════════════════════════════════════
+
+const SRS_KEY = 'mathflow_srs_v3';
+
+function loadSRS() {
+  try { return JSON.parse(localStorage.getItem(SRS_KEY) || '{}'); }
+  catch(e) { return {}; }
+}
+
+function saveSRS(data) {
+  try { localStorage.setItem(SRS_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+function getCardKey(topicId, item) {
+  return topicId + '_' + Object.values(item).join('_');
+}
+
+function getCardData(srsData, key) {
+  return srsData[key] || { ease:2.5, interval:1, due:0, reps:0 };
+}
+
+function updateCard(card, correct) {
+  const now = Date.now();
+  if(correct) {
+    card.reps++;
+    if(card.reps === 1) card.interval = 1;
+    else if(card.reps === 2) card.interval = 3;
+    else card.interval = Math.round(card.interval * card.ease);
+    card.ease = Math.max(1.3, card.ease + 0.1);
+  } else {
+    card.reps = 0;
+    card.interval = 1;
+    card.ease = Math.max(1.3, card.ease - 0.2);
+  }
+  card.due = now + card.interval * 60 * 1000; // interval in minutes for practice purposes
+  return card;
+}
+
+function pickSRSItem(topicId, pool) {
+  const srsData = loadSRS();
+  const now = Date.now();
+
+  // Score each item: overdue items get highest priority
+  const scored = pool.map(item => {
+    const key = getCardKey(topicId, item);
+    const card = getCardData(srsData, key);
+    const overdue = now - card.due; // positive = overdue
+    // New cards (reps=0) get medium priority to mix with overdue
+    const score = card.reps === 0 ? 0 : overdue;
+    return { item, score, card };
+  });
+
+  // Sort by score descending (most overdue / new first)
+  scored.sort((a,b) => b.score - a.score);
+
+  // Pick from top 30% with some randomness to avoid pure determinism
+  const topN = Math.max(1, Math.floor(scored.length * 0.3));
+  const candidates = scored.slice(0, topN);
+  return pick(candidates).item;
+}
+
+function recordSRS(topicId, item, correct) {
+  const srsData = loadSRS();
+  const key = getCardKey(topicId, item);
+  const card = getCardData(srsData, key);
+  srsData[key] = updateCard(card, correct);
+  saveSRS(srsData);
+}
+
+function getMasteryPercent(topicId, pool) {
+  const srsData = loadSRS();
+  if(!pool || pool.length === 0) return 0;
+  let mastered = 0;
+  for(const item of pool) {
+    const key = getCardKey(topicId, item);
+    const card = getCardData(srsData, key);
+    if(card.reps >= 3 && card.ease >= 2.3) mastered++;
+  }
+  return Math.round(mastered / pool.length * 100);
+}
+
+// ═══════════════════════════════════════════════════════
+//  HAPTICS
+// ═══════════════════════════════════════════════════════
+
+const HAPTICS_KEY = 'mathflow_haptics_v3';
+
+function hapticsEnabled() {
+  return localStorage.getItem(HAPTICS_KEY) !== 'off';
+}
+
+function vibrate(pattern) {
+  if(!hapticsEnabled()) return;
+  if('vibrate' in navigator) navigator.vibrate(pattern);
+}
+
+const HAPTIC = {
+  tap:     () => vibrate(8),
+  correct: () => vibrate(40),
+  wrong:   () => vibrate([30, 60, 30]),
+};
+
+// ═══════════════════════════════════════════════════════
+//  SESSION STATE
+// ═══════════════════════════════════════════════════════
+
+let S = {
+  topicId: null,
+  mode: null,
+  timerMins: null,
+  input: '',
+  locked: false,
+  correct: 0,
+  attempted: 0,
+  streak: 0,
+  qNum: 0,
+  current: null,
+  currentItem: null,
+  timerInterval: null,
+  timerSecondsLeft: 0,
+  startTime: null,
+  fromSubtopic: false
+};
+
+// ═══════════════════════════════════════════════════════
+//  HOME SCREEN BUILDER
+// ═══════════════════════════════════════════════════════
+
+const SECTIONS = {
+  addition:       { label:'Addition',        containerId:'additionCards' },
+  subtraction:    { label:'Subtraction',     containerId:'subtractionCards' },
+  multiplication: { label:'Multiplication',  containerId:'multiplicationCards' },
+  memory:         { label:'Memory & Recall', containerId:'memoryCards' }
+};
+
+// Group topics by section
+const SECTION_TOPICS = {};
+for(const [id, t] of Object.entries(TOPICS)) {
+  if(!SECTION_TOPICS[t.section]) SECTION_TOPICS[t.section] = [];
+  SECTION_TOPICS[t.section].push({id, ...t});
+}
+
+function buildHomeScreen() {
+  for(const [section, {containerId}] of Object.entries(SECTIONS)) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    const topics = SECTION_TOPICS[section] || [];
+
+    if(topics.length === 1) {
+      // Direct card
+      const t = topics[0];
+      container.appendChild(makeTopicCard(t.id, t));
+    } else {
+      // Group card that opens subtopic screen
+      const groupCard = makeGroupCard(section, topics);
+      container.appendChild(groupCard);
+    }
+  }
+}
+
+function makeTopicCard(topicId, topic) {
+  const div = document.createElement('div');
+  div.className = 'topic-card';
+  const mastery = topic.srs ? getMasteryPercent(topicId, topic.pool) : null;
+  const overdue = topic.srs ? getOverdueCount(topicId, topic.pool) : 0;
+
+  div.innerHTML = `
+    <div class="topic-icon">${getIcon(topic.section)}</div>
+    <div class="topic-info">
+      <div class="topic-name">${topic.name}</div>
+      <div class="topic-sub">${topic.desc}</div>
+    </div>
+    <div class="topic-right">
+      ${overdue > 0 ? `<div style="background:var(--wrong);color:#fff;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px">${overdue} due</div>` : (topic.srs ? `<div class="srs-badge">SRS</div>` : '')}
+      ${mastery !== null ? `
+        <div class="mastery-bar-wrap">
+          <div class="mastery-bar-fill" style="width:${mastery}%"></div>
+        </div>` : ''}
+      <div class="topic-arrow">›</div>
+    </div>`;
+
+  div.onclick = () => openMode(topicId);
+  return div;
+}
+
+function makeGroupCard(section, topics) {
+  const div = document.createElement('div');
+  div.className = 'topic-card';
+  div.innerHTML = `
+    <div class="topic-icon">${getIcon(section)}</div>
+    <div class="topic-info">
+      <div class="topic-name">${capitalize(section)}</div>
+      <div class="topic-sub">${topics.length} variations</div>
+    </div>
+    <div class="topic-right">
+      <div class="topic-arrow">›</div>
+    </div>`;
+  div.onclick = () => openSubtopic(section, topics);
+  return div;
+}
+
+function getIcon(section) {
+  return {addition:'+', subtraction:'−', multiplication:'×', memory:'∑'}[section] || '?';
+}
+
+function capitalize(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
+
+// ═══════════════════════════════════════════════════════
+//  SUBTOPIC SCREEN
+// ═══════════════════════════════════════════════════════
+
+function openSubtopic(section, topics) {
+  document.getElementById('subtopicTitle').textContent = capitalize(section);
+  document.getElementById('subtopicSub').textContent = `${topics.length} variations`;
+
+  const list = document.getElementById('subtopicList');
+  list.innerHTML = '';
+
+  topics.forEach(topic => {
+    const mastery = topic.srs ? getMasteryPercent(topic.id, topic.pool) : null;
+    const div = document.createElement('div');
+    div.className = 'subtopic-card';
+    div.innerHTML = `
+      <div class="subtopic-left">
+        <div class="subtopic-name">${topic.name}</div>
+        <div class="subtopic-desc">${topic.desc}</div>
+      </div>
+      <div class="subtopic-right">
+        ${topic.srs ? `<div class="srs-badge">SRS</div>` : ''}
+        ${mastery !== null ? `
+          <div class="mastery-bar-wrap">
+            <div class="mastery-bar-fill" style="width:${mastery}%"></div>
+          </div>` : ''}
+        <div class="subtopic-arrow">›</div>
+      </div>`;
+    div.onclick = () => { S.fromSubtopic = true; openMode(topic.id); };
+    list.appendChild(div);
+  });
+
+  showScreen('subtopicScreen');
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODE SCREEN
+// ═══════════════════════════════════════════════════════
+
+function openMode(topicId) {
+  S.topicId = topicId;
+  S.mode = null;
+  S.timerMins = null;
+
+  const topic = TOPICS[topicId];
+  document.getElementById('modeTitle').textContent = topic.name;
+  document.getElementById('modeSub').textContent = topic.desc;
+  document.getElementById('learnCard').classList.remove('selected');
+  document.getElementById('practiceCard').classList.remove('selected');
+  document.getElementById('timerOptions').classList.remove('show');
+  document.querySelectorAll('.timer-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('startBtn').classList.remove('ready');
+  document.getElementById('srsInfo').style.display = topic.srs ? 'block' : 'none';
+
+  document.getElementById('modeBackBtn').onclick = () =>
+    showScreen(S.fromSubtopic ? 'subtopicScreen' : 'homeScreen');
+
+  showScreen('modeScreen');
+}
+
+function selectMode(m) {
+  S.mode = m;
+  S.timerMins = null;
+  document.getElementById('learnCard').classList.toggle('selected', m==='learn');
+  document.getElementById('practiceCard').classList.toggle('selected', m==='practice');
+  document.getElementById('timerOptions').classList.toggle('show', m==='practice');
+  document.querySelectorAll('.timer-btn').forEach(b=>b.classList.remove('selected'));
+  updateStartBtn();
+}
+
+function selectTimer(e, mins) {
+  e.stopPropagation();
+  S.timerMins = mins;
+  document.querySelectorAll('.timer-btn').forEach(b=>b.classList.remove('selected'));
+  e.target.classList.add('selected');
+  updateStartBtn();
+}
+
+function updateStartBtn() {
+  const ready = S.mode==='learn' || (S.mode==='practice' && S.timerMins);
+  document.getElementById('startBtn').classList.toggle('ready', !!ready);
+}
+
+// ═══════════════════════════════════════════════════════
+//  SESSION
+// ═══════════════════════════════════════════════════════
+
+function startSession() {
+  if(S.timerInterval) { clearInterval(S.timerInterval); S.timerInterval=null; }
+
+  S.input=''; S.locked=false; S.correct=0; S.attempted=0;
+  S.streak=0; S.qNum=0; S.startTime=Date.now();
+
+  document.getElementById('correctCount').textContent='0';
+  document.getElementById('streakVal').textContent='0';
+  document.getElementById('progressBar').style.width='0%';
+
+  const topic = TOPICS[S.topicId];
+  document.getElementById('practiceTopicLabel').textContent = topic.name;
+
+  if(S.mode==='practice') {
+    S.timerSecondsLeft = S.timerMins * 60;
+    updateTimerDisplay();
+    S.timerInterval = setInterval(timerTick, 1000);
+  } else {
+    document.getElementById('practiceMeta').innerHTML =
+      `Q <span class="val" id="qNumDisplay">1</span>/20`;
+  }
+
+  showScreen('practiceScreen');
+  nextQuestion();
+}
+
+function timerTick() {
+  S.timerSecondsLeft--;
+  updateTimerDisplay();
+  if(S.timerSecondsLeft <= 0) {
+    clearInterval(S.timerInterval); S.timerInterval=null;
+    showResult();
+  }
+}
+
+function updateTimerDisplay() {
+  const m=Math.floor(S.timerSecondsLeft/60), s=S.timerSecondsLeft%60;
+  const str=`${m}:${s.toString().padStart(2,'0')}`;
+  const urgent = S.timerSecondsLeft<=30;
+  document.getElementById('practiceMeta').innerHTML =
+    `<span style="font-family:'DM Mono',monospace;font-size:12px;${urgent?'color:var(--wrong)':''}">${str}</span>`;
+}
+
+function nextQuestion() {
+  if(S.mode==='learn' && S.qNum>=20) { showResult(); return; }
+
+  // Remove any lingering answer reveal
+  const existing = document.getElementById('answerReveal');
+  if(existing) existing.remove();
+
+  const topic = TOPICS[S.topicId];
+
+  if(topic.srs) {
+    S.currentItem = pickSRSItem(S.topicId, topic.pool);
+    S.current = topic.generate(S.currentItem);
+  } else {
+    S.currentItem = null;
+    S.current = topic.generate();
+  }
+
+  S.input=''; S.locked=false;
+  document.getElementById('question').className='question';
+  document.getElementById('question').textContent=S.current.display;
+  document.getElementById('questionTypeLabel').textContent=S.current.typeLabel||'';
+  document.getElementById('feedback').textContent='\u00a0';
+  document.getElementById('feedback').className='feedback';
+  updateDisplay();
+
+  if(S.mode==='learn') {
+    const el=document.getElementById('qNumDisplay');
+    if(el) el.textContent=S.qNum+1;
+    document.getElementById('progressBar').style.width=(S.qNum/20*100)+'%';
+  }
+}
+
+function updateDisplay() {
+  const el=document.getElementById('answerDisplay');
+  el.textContent=S.input||'_';
+  el.className='answer-display'+(S.input?' has-value':'');
+}
+
+function submit() {
+  if(S.locked || !S.input) return;
+  S.locked=true; S.attempted++; S.qNum++;
+
+  const val=parseInt(S.input);
+  const correct=val===S.current.answer;
+  const qEl=document.getElementById('question');
+  const ansEl=document.getElementById('answerDisplay');
+  const fbEl=document.getElementById('feedback');
+  const isPractice=S.mode==='practice';
+
+  if(correct) {
+    S.correct++; S.streak++;
+    qEl.classList.add('flash-correct');
+    HAPTIC.correct();
+    if(!isPractice) { fbEl.textContent='✓ correct'; fbEl.className='feedback correct'; }
+    // Record SRS
+    const topic=TOPICS[S.topicId];
+    if(topic.srs && S.currentItem) recordSRS(S.topicId, S.currentItem, correct);
+    document.getElementById('correctCount').textContent=S.correct;
+    document.getElementById('streakVal').textContent=S.streak;
+    setTimeout(nextQuestion, isPractice ? 180 : 620);
+  } else {
+    S.streak=0;
+    HAPTIC.wrong();
+    // Record SRS immediately
+    const topic=TOPICS[S.topicId];
+    if(topic.srs && S.currentItem) recordSRS(S.topicId, S.currentItem, false);
+    document.getElementById('correctCount').textContent=S.correct;
+    document.getElementById('streakVal').textContent=S.streak;
+
+    if(isPractice) {
+      // Practice mode — quick flash only
+      qEl.classList.add('flash-wrong');
+      ansEl.className='answer-display wrong';
+      setTimeout(nextQuestion, 180);
+    } else {
+      // Learn mode — show big answer reveal, user must see it
+      showAnswerReveal(S.current.display, S.current.answer);
+    }
+  }
+}
+
+function showAnswerReveal(question, answer) {
+  const existing = document.getElementById('answerReveal');
+  if(existing) existing.remove();
+
+  const reveal = document.createElement('div');
+  reveal.id = 'answerReveal';
+  reveal.className = 'answer-reveal';
+  // Cover full screen including keypad area
+  reveal.style.cssText += ';position:fixed;top:54px;left:0;right:0;bottom:0;z-index:20;';
+  reveal.innerHTML = `
+    <div class="reveal-label">✗ incorrect</div>
+    <div class="reveal-question">${question}</div>
+    <div class="reveal-answer">${answer}</div>
+    <div class="reveal-hint">tap anywhere to continue</div>
+  `;
+
+  document.body.appendChild(reveal);
+
+  reveal.addEventListener('click', () => {
+    reveal.style.opacity = '0';
+    reveal.style.transition = 'opacity 0.15s ease';
+    setTimeout(() => {
+      reveal.remove();
+      nextQuestion();
+    }, 150);
+  }, { once: true });
+}
+
+// ═══════════════════════════════════════════════════════
+//  NUMPAD
+// ═══════════════════════════════════════════════════════
+
+document.getElementById('numpad').addEventListener('click', e => {
+  if(!document.getElementById('practiceScreen').classList.contains('active')) return;
+  const key=e.target.closest('.key');
+  if(!key || S.locked) return;
+  HAPTIC.tap();
+  const val=key.dataset.val;
+
+  if(val==='del') {
+    S.input=S.input.slice(0,-1);
+    updateDisplay();
+  } else if(val==='submit') {
+    if(S.input) submit();
+  } else {
+    if(S.input.length>=5) return;
+    S.input+=val;
+    updateDisplay();
+    if(S.current && S.input.length===S.current.maxDigits) {
+      setTimeout(submit, 80);
+    }
+  }
+});
+
+// Keyboard support
+document.addEventListener('keydown', e => {
+  if(!document.getElementById('practiceScreen').classList.contains('active')) return;
+  if(e.key>='0'&&e.key<='9') {
+    if(S.input.length<5&&!S.locked) {
+      S.input+=e.key; updateDisplay();
+      if(S.current&&S.input.length===S.current.maxDigits) setTimeout(submit,80);
+    }
+  } else if(e.key==='Backspace') {
+    if(!S.locked) { S.input=S.input.slice(0,-1); updateDisplay(); }
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  RESULT
+// ═══════════════════════════════════════════════════════
+
+function showResult() {
+  if(S.timerInterval) { clearInterval(S.timerInterval); S.timerInterval=null; }
+
+  // Record activity & update streak
+  recordActivity(S.attempted, S.correct);
+  updateStreakDisplay();
+
+  const elapsed=Math.max(1, Math.round((Date.now()-S.startTime)/1000));
+  const accuracy=S.attempted>0?Math.round(S.correct/S.attempted*100):0;
+  const qpm=(S.attempted/(elapsed/60)).toFixed(1);
+  const topic=TOPICS[S.topicId];
+
+  document.getElementById('resultBig').textContent=`${S.correct}/${S.attempted}`;
+  document.getElementById('resultTopic').textContent=
+    topic.name+' · '+(S.mode==='practice'?`${S.timerMins} min practice`:'learn mode');
+
+  let statsHTML=`
+    <div class="stat-row"><span class="stat-label">accuracy</span><span class="stat-val">${accuracy}%</span></div>
+    <div class="stat-row"><span class="stat-label">correct</span><span class="stat-val">${S.correct}</span></div>
+    <div class="stat-row"><span class="stat-label">attempted</span><span class="stat-val">${S.attempted}</span></div>`;
+
+  if(S.mode==='practice') {
+    statsHTML+=`<div class="stat-row"><span class="stat-label">questions/min</span><span class="stat-val">${qpm}</span></div>`;
+  }
+
+  if(topic.srs) {
+    const mastery=getMasteryPercent(S.topicId, topic.pool);
+    statsHTML+=`<div class="stat-row"><span class="stat-label">mastery</span><span class="stat-val">${mastery}%</span></div>`;
+  }
+
+  document.getElementById('resultStats').innerHTML=statsHTML;
+
+  let msg='';
+  if(accuracy===100) msg='perfect accuracy 🎯';
+  else if(accuracy>=90) msg='excellent — keep pushing';
+  else if(accuracy>=70) msg='solid — accuracy before speed';
+  else msg='keep practising — consistency first';
+
+  document.getElementById('resultMessage').textContent=msg;
+  showScreen('resultScreen');
+  buildHomeScreen(); // refresh mastery bars
+}
+
+// ═══════════════════════════════════════════════════════
+//  STREAK SYSTEM
+// ═══════════════════════════════════════════════════════
+
+const STREAK_KEY = 'mathflow_streak_v3';
+const ACTIVITY_KEY = 'mathflow_activity_v3';
+
+function loadStreak() {
+  try { return JSON.parse(localStorage.getItem(STREAK_KEY) || '{"count":0,"lastDate":null}'); }
+  catch(e) { return {count:0, lastDate:null}; }
+}
+
+function saveStreak(data) {
+  try { localStorage.setItem(STREAK_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+function getTodayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function recordActivity(attempted, correct) {
+  const today = getTodayStr();
+  let activity = {};
+  try { activity = JSON.parse(localStorage.getItem(ACTIVITY_KEY) || '{}'); } catch(e) {}
+
+  if(!activity[today]) activity[today] = {attempted:0, correct:0, sessions:0};
+  activity[today].attempted += attempted;
+  activity[today].correct += correct;
+  activity[today].sessions++;
+
+  // Keep only last 30 days
+  const keys = Object.keys(activity).sort();
+  if(keys.length > 30) delete activity[keys[0]];
+  try { localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activity)); } catch(e) {}
+
+  // Update streak
+  updateStreak(today);
+}
+
+function updateStreak(today) {
+  const streak = loadStreak();
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+
+  if(streak.lastDate === today) return; // already recorded today
+  if(streak.lastDate === yesterday) {
+    streak.count++;
+  } else if(streak.lastDate !== today) {
+    streak.count = 1; // reset or start
+  }
+  streak.lastDate = today;
+  saveStreak(streak);
+}
+
+function getStreak() {
+  const streak = loadStreak();
+  const today = getTodayStr();
+  const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+  // Streak is alive if practiced today or yesterday
+  if(streak.lastDate !== today && streak.lastDate !== yesterday) return 0;
+  return streak.count;
+}
+
+function updateStreakDisplay() {
+  const count = getStreak();
+  const el = document.getElementById('streakDisplay');
+  if(count > 0) {
+    el.style.display = 'block';
+    el.textContent = `🔥 ${count}`;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  OVERDUE SRS BADGES
+// ═══════════════════════════════════════════════════════
+
+function getOverdueCount(topicId, pool) {
+  if(!pool) return 0;
+  const srsData = loadSRS();
+  const now = Date.now();
+  let count = 0;
+  for(const item of pool) {
+    const key = getCardKey(topicId, item);
+    const card = getCardData(srsData, key);
+    if(card.reps > 0 && now > card.due) count++;
+    if(card.reps === 0) count++; // new cards count as due
+  }
+  return count;
+}
+
+// ═══════════════════════════════════════════════════════
+//  STATS SCREEN
+// ═══════════════════════════════════════════════════════
+
+function toggleHaptics() {
+  const enabled = hapticsEnabled();
+  localStorage.setItem(HAPTICS_KEY, enabled ? 'off' : 'on');
+  updateHapticsToggle();
+  if(!enabled) HAPTIC.tap();
+}
+
+function updateHapticsToggle() {
+  const on = hapticsEnabled();
+  const toggle = document.getElementById('hapticsToggle');
+  const thumb  = document.getElementById('hapticsThumb');
+  if(!toggle) return;
+  toggle.style.background = on ? 'var(--accent)' : 'var(--border)';
+  thumb.style.left = on ? '21px' : '3px';
+  thumb.style.background = on ? '#0f0f0f' : '#888';
+}
+
+function buildStatsScreen() {
+  const streak = getStreak();
+  const streakData = loadStreak();
+  const today = getTodayStr();
+
+  document.getElementById('statsStreakNum').textContent = streak;
+
+  if(streak === 0) {
+    document.getElementById('statsStreakMsg').textContent = 'practise today to start your streak';
+  } else if(streakData.lastDate === today) {
+    document.getElementById('statsStreakMsg').textContent = `✓ practised today · ${streak} day${streak>1?'s':''} running`;
+  } else {
+    document.getElementById('statsStreakMsg').textContent = `⚠ practise today to keep your streak!`;
+    document.getElementById('statsStreakMsg').style.color = 'var(--wrong)';
+  }
+
+  // Weekly chart
+  buildWeeklyChart();
+  updateHapticsToggle();
+
+  // All-time stats
+  let activity = {};
+  try { activity = JSON.parse(localStorage.getItem(ACTIVITY_KEY) || '{}'); } catch(e) {}
+  const days = Object.values(activity);
+  const totalAttempted = days.reduce((s,d)=>s+d.attempted,0);
+  const totalCorrect   = days.reduce((s,d)=>s+d.correct,0);
+  const totalSessions  = days.reduce((s,d)=>s+d.sessions,0);
+  const avgAcc = totalAttempted > 0 ? Math.round(totalCorrect/totalAttempted*100) : 0;
+
+  document.getElementById('allTimeStats').innerHTML = `
+    <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:12px">
+      <span style="color:var(--muted)">total questions</span>
+      <span style="color:var(--text);font-weight:500">${totalAttempted}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:12px">
+      <span style="color:var(--muted)">overall accuracy</span>
+      <span style="color:var(--text);font-weight:500">${avgAcc}%</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:12px">
+      <span style="color:var(--muted)">total sessions</span>
+      <span style="color:var(--text);font-weight:500">${totalSessions}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:12px">
+      <span style="color:var(--muted)">days active</span>
+      <span style="color:var(--text);font-weight:500">${days.length}</span>
+    </div>`;
+}
+
+function buildWeeklyChart() {
+  let activity = {};
+  try { activity = JSON.parse(localStorage.getItem(ACTIVITY_KEY) || '{}'); } catch(e) {}
+
+  const days = [];
+  for(let i=6; i>=0; i--) {
+    const d = new Date(Date.now() - i*86400000);
+    const key = d.toISOString().slice(0,10);
+    const dayName = d.toLocaleDateString('en',{weekday:'short'}).slice(0,2);
+    days.push({ key, label: dayName, count: activity[key]?.attempted || 0 });
+  }
+
+  const max = Math.max(...days.map(d=>d.count), 1);
+  const chartEl = document.getElementById('weeklyChart');
+  const labelsEl = document.getElementById('weeklyLabels');
+  const today = getTodayStr();
+
+  chartEl.innerHTML = '';
+  labelsEl.innerHTML = '';
+
+  days.forEach(day => {
+    const pct = Math.max(day.count > 0 ? 8 : 0, Math.round(day.count/max*100));
+    const isToday = day.key === today;
+    const col = day.count > 0 ? (isToday ? 'var(--accent)' : 'rgba(200,240,96,0.45)') : 'var(--border)';
+
+    const bar = document.createElement('div');
+    bar.style.cssText = `flex:1;background:${col};border-radius:4px 4px 0 0;height:${pct}%;min-height:${day.count>0?4:2}px;transition:height 0.3s ease;align-self:flex-end`;
+    chartEl.appendChild(bar);
+
+    const label = document.createElement('div');
+    label.style.cssText = `flex:1;text-align:center;font-family:'DM Mono',monospace;font-size:10px;color:${isToday?'var(--accent)':'var(--muted)'};`;
+    label.textContent = day.label;
+    labelsEl.appendChild(label);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  REMINDER / NOTIFICATIONS
+// ═══════════════════════════════════════════════════════
+
+const REMINDER_KEY = 'mathflow_reminder_v3';
+let selectedReminderTime = null;
+
+function openReminderSettings() {
+  const saved = localStorage.getItem(REMINDER_KEY);
+  selectedReminderTime = saved || null;
+
+  document.querySelectorAll('.time-slot').forEach(el => {
+    el.classList.toggle('selected', el.dataset.time === selectedReminderTime);
+  });
+
+  const saveBtn = document.getElementById('reminderSaveBtn');
+  saveBtn.style.opacity = selectedReminderTime ? '1' : '0.4';
+  saveBtn.style.pointerEvents = selectedReminderTime ? 'all' : 'none';
+
+  document.getElementById('reminderModal').style.display = 'flex';
+}
+
+function closeReminderModal() {
+  document.getElementById('reminderModal').style.display = 'none';
+}
+
+document.getElementById('timeSlots').addEventListener('click', e => {
+  const slot = e.target.closest('.time-slot');
+  if(!slot) return;
+  selectedReminderTime = slot.dataset.time;
+  document.querySelectorAll('.time-slot').forEach(el => el.classList.remove('selected'));
+  slot.classList.add('selected');
+  const saveBtn = document.getElementById('reminderSaveBtn');
+  saveBtn.style.opacity = '1';
+  saveBtn.style.pointerEvents = 'all';
+});
+
+async function saveReminder() {
+  if(!selectedReminderTime) return;
+
+  // Request notification permission
+  if('Notification' in window) {
+    const perm = await Notification.requestPermission();
+    if(perm !== 'granted') {
+      alert('Please allow notifications to enable reminders.');
+      return;
+    }
+  }
+
+  localStorage.setItem(REMINDER_KEY, selectedReminderTime);
+  scheduleReminder(selectedReminderTime);
+  closeReminderModal();
+
+  // Update bell icon to show active
+  document.getElementById('reminderBtn').textContent = '🔔';
+
+  // Show confirmation
+  const [h,m] = selectedReminderTime.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h > 12 ? h-12 : (h===0?12:h);
+  alert(`Reminder set for ${hour12}:${m.toString().padStart(2,'0')} ${period} daily ✓`);
+}
+
+function scheduleReminder(timeStr) {
+  // Store reminder time — service worker will handle the actual notification
+  // For now we use a setTimeout-based approach for the current session
+  // and store the preference for future sessions
+  const [h,m] = timeStr.split(':').map(Number);
+  const now = new Date();
+  const target = new Date();
+  target.setHours(h, m, 0, 0);
+  if(target <= now) target.setDate(target.getDate()+1); // schedule for tomorrow if past
+
+  const msUntil = target - now;
+
+  // Clear any existing reminder timeout
+  if(window._reminderTimeout) clearTimeout(window._reminderTimeout);
+
+  window._reminderTimeout = setTimeout(() => {
+    if(Notification.permission === 'granted') {
+      new Notification('MathFlow', {
+        body: "Time to practise! 🔥 Keep your streak alive.",
+        icon: './icon.png',
+        badge: './icon.png'
+      });
+    }
+    // Reschedule for next day
+    scheduleReminder(timeStr);
+  }, msUntil);
+}
+
+function initReminder() {
+  const saved = localStorage.getItem(REMINDER_KEY);
+  if(saved && Notification.permission === 'granted') {
+    scheduleReminder(saved);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════
+
+const screenHistory = ['homeScreen'];
+
+function showScreen(id) {
+  const current = screenHistory[screenHistory.length - 1];
+  if(current === id) return;
+
+  const allScreens = document.querySelectorAll('.screen');
+  const incoming = document.getElementById(id);
+  const outgoing = document.getElementById(current);
+
+  const isBack = screenHistory.includes(id);
+
+  if(isBack) {
+    // Going back — incoming slides in from left, outgoing exits right
+    screenHistory.splice(screenHistory.lastIndexOf(id) + 1);
+    allScreens.forEach(s => {
+      s.classList.remove('active','slide-out');
+      if(s !== incoming && s !== outgoing) {
+        s.style.transform = 'translateX(100%)';
+      }
+    });
+    outgoing.style.transform = 'translateX(0)';
+    outgoing.style.transition = 'transform 0.28s cubic-bezier(0.4,0,0.2,1)';
+    incoming.style.transform = 'translateX(-30%)';
+    incoming.style.transition = 'none';
+    incoming.classList.add('active');
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        outgoing.style.transform = 'translateX(100%)';
+        incoming.style.transition = 'transform 0.28s cubic-bezier(0.4,0,0.2,1)';
+        incoming.style.transform = 'translateX(0)';
+      });
+    });
+  } else {
+    // Going forward — incoming slides in from right
+    screenHistory.push(id);
+    allScreens.forEach(s => {
+      s.classList.remove('active','slide-out');
+      if(s !== incoming && s !== outgoing) {
+        s.style.transform = 'translateX(100%)';
+      }
+    });
+    incoming.style.transform = 'translateX(100%)';
+    incoming.style.transition = 'none';
+    incoming.classList.add('active');
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        outgoing.style.transition = 'transform 0.28s cubic-bezier(0.4,0,0.2,1)';
+        outgoing.style.transform = 'translateX(-30%)';
+        incoming.style.transition = 'transform 0.28s cubic-bezier(0.4,0,0.2,1)';
+        incoming.style.transform = 'translateX(0)';
+      });
+    });
+  }
+
+  if(id === 'statsScreen') buildStatsScreen();
+  incoming.scrollTop = 0;
+}
+
+
+let touchStartX = 0;
+let touchStartY = 0;
+let isSwiping = false;
+
+document.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  isSwiping = touchStartX < 40; // only trigger from left edge
+}, { passive: true });
+
+document.addEventListener('touchend', e => {
+  if(!isSwiping) return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+  if(dx > 60 && dy < 80 && screenHistory.length > 1) {
+    const prev = screenHistory[screenHistory.length - 2];
+    showScreen(prev);
+  }
+  isSwiping = false;
+}, { passive: true });
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+
+// Init
+buildHomeScreen();
+updateStreakDisplay();
+initReminder();
+
+// Set initial screen positions
+document.querySelectorAll('.screen').forEach(s => {
+  if(!s.classList.contains('active')) {
+    s.style.transform = 'translateX(100%)';
+    s.style.transition = 'none';
+  }
+});
+</script>
+</body>
+</html>
