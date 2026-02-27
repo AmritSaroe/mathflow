@@ -16,6 +16,19 @@ function showScreen(id) {
   const current = screenHistory[screenHistory.length - 1];
   if (current === id) return;
 
+  // ── Desktop: sidebar always visible, right panel swaps instantly ──
+  if (isDesktop()) {
+    const isBack = screenHistory.includes(id);
+    if (isBack) screenHistory.splice(screenHistory.lastIndexOf(id) + 1);
+    else        screenHistory.push(id);
+
+    document.querySelectorAll('.screen:not(#homeScreen)').forEach(s => s.classList.remove('active'));
+    if (id !== 'homeScreen') document.getElementById(id).classList.add('active');
+    if (id === 'statsScreen') buildStatsScreen();
+    if (id !== 'homeScreen') document.getElementById(id).scrollTop = 0;
+    return;
+  }
+
   const allScreens = document.querySelectorAll('.screen');
   const incoming   = document.getElementById(id);
   const outgoing   = document.getElementById(current);
