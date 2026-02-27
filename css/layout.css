@@ -39,7 +39,7 @@
    Mobile stays full-screen.
    Desktop gets a proper wide app shell (920px × ~95dvh).
 ────────────────────────────────────────────────────────── */
-@media (pointer: fine) {
+@media (min-width: 700px) {
   .screen-container {
     width: 920px;
     height: min(900px, 96dvh);
