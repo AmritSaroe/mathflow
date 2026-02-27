@@ -61,7 +61,7 @@ No build step, no dependencies. It's a single HTML file.
 
 ```bash
 # Clone and serve
-git clone https://github.com/yourusername/mathflow
+git clone https://github.com/amritsaroe/mathflow
 cd mathflow
 python3 -m http.server 8080
 # Open http://localhost:8080
