@@ -1,0 +1,83 @@
+/* ═══════════════════════════════════════════════════════
+   RESULT SCREEN
+═══════════════════════════════════════════════════════ */
+
+#resultScreen {
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+}
+
+.result-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
+}
+
+.result-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.result-big {
+  font-family: 'DM Mono', monospace;
+  font-size: 64px;
+  color: var(--accent);
+  font-weight: 300;
+  line-height: 1;
+  margin: 4px 0;
+}
+
+.result-topic {
+  font-size: 12px;
+  color: var(--muted2);
+  font-family: 'DM Mono', monospace;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.result-stats {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+}
+
+.stat-label { color: var(--muted); }
+.stat-val   { color: var(--text); font-weight: 500; }
+
+.result-message {
+  font-size: 12px;
+  color: var(--muted2);
+  font-family: 'DM Mono', monospace;
+  margin: 6px 0 10px;
+  text-align: center;
+}
+
+.result-btns {
+  display: flex;
+  gap: 9px;
+  width: 100%;
+}
+
+/* Desktop: slightly wider result card */
+@media (pointer: fine) {
+  .result-inner { max-width: 420px; }
+}

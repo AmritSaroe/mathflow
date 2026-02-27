@@ -1,0 +1,59 @@
+/* ── App shell ─────────────────────────────────────────── */
+.screen-container {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ── Screen layer system ───────────────────────────────── */
+.screen {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg);
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  -webkit-overflow-scrolling: touch;
+}
+
+.screen.active  { transform: translateX(0);    z-index: 2; }
+.screen.slide-out { transform: translateX(-30%); z-index: 1; }
+
+/* Home is the base layer — always rendered, never fully displaced */
+#homeScreen {
+  transform: translateX(0);
+  z-index: 1;
+  padding-bottom: 48px;
+}
+
+#homeScreen.slide-out { transform: translateX(-30%); }
+
+/* ── Desktop: wider centred card ────────────────────────
+   Mobile stays full-screen.
+   Desktop gets a proper wide app shell (920px × ~95dvh).
+────────────────────────────────────────────────────────── */
+@media (pointer: fine) {
+  .screen-container {
+    width: 920px;
+    height: min(900px, 96dvh);
+    border-radius: 20px;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.08),
+      0 48px 120px rgba(0,0,0,0.7),
+      0 12px 40px  rgba(0,0,0,0.5);
+  }
+
+  html.light .screen-container {
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.1),
+      0 40px 100px rgba(0,0,0,0.13),
+      0 8px  32px  rgba(0,0,0,0.07);
+  }
+}
