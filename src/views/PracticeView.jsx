@@ -3,7 +3,12 @@ import { pickSRSItem, recordSRS } from '../engine/srs'
 import { recordActivity } from '../engine/storage'
 import NumPad from '../components/NumPad'
 
-// ── Session reducer ──────────────────────────────────────
+/* ── Constants ───────────────────────────────────────── */
+const ACCENT = '#d4f53c'
+const GREEN  = '#22d36e'
+const RED    = '#f04848'
+
+/* ── Session reducer ─────────────────────────────────── */
 const INIT = {
   input: '', locked: false,
   correct: 0, attempted: 0, streak: 0, qNum: 0,
@@ -21,10 +26,10 @@ function reducer(s, a) {
   }
 }
 
-const desktop = () =>
+const isDesktop = () =>
   window.matchMedia('(pointer: fine)').matches || window.innerWidth >= 700
 
-// ── Component ────────────────────────────────────────────
+/* ── Component ───────────────────────────────────────── */
 export default function PracticeView({ session, onExit, onAgain }) {
   const { topicId, topic, mode, timerMins } = session
 
@@ -32,15 +37,17 @@ export default function PracticeView({ session, onExit, onAgain }) {
   const [question, setQ]     = useState(null)
   const [srsItem, setSrsItem] = useState(null)
   const [timerSecs, setTimer] = useState(mode === 'practice' ? timerMins * 60 : null)
-  const [flash, setFlash]    = useState(null) // 'correct' | 'wrong' | null
+  const [flash, setFlash]    = useState(null)   // 'correct' | 'wrong' | null
+  const [feedKey, setFeedKey] = useState(0)     // increments per submit → retriggers CSS anim
 
-  const isDesktop  = desktop()
-  const inputRef   = useRef(null)
-  const timerRef   = useRef(null)
-  const stRef      = useRef(st)
-  stRef.current    = st
+  const desktop   = isDesktop()
+  const inputRef  = useRef(null)
+  const timerRef  = useRef(null)
+  const stRef     = useRef(st); stRef.current = st
+  const qRef      = useRef(question); qRef.current = question
+  const qDisplayRef = useRef(null)
 
-  // ── Question generation ────────────────────────────────
+  /* ── Question generation ─────────────────────────── */
   function genQ() {
     if (topic.srs) {
       const it = pickSRSItem(topicId, topic.pool)
@@ -56,15 +63,14 @@ export default function PracticeView({ session, onExit, onAgain }) {
     const { q, it } = genQ()
     setQ(q); setSrsItem(it); setFlash(null)
     dispatch({ type: 'CONTINUE' })
-    if (isDesktop) setTimeout(() => inputRef.current?.focus(), 80)
+    if (desktop) setTimeout(() => inputRef.current?.focus(), 80)
   }
 
-  // Stable refs so timeouts always call the latest version
-  const nextQRef  = useRef(nextQuestion);  nextQRef.current  = nextQuestion
+  const nextQRef  = useRef(nextQuestion); nextQRef.current = nextQuestion
   const submitRef = useRef(null)
 
-  // ── Init & timer ──────────────────────────────────────
-  useEffect(() => { nextQRef.current() }, [])           // first question
+  /* ── Init & timer ────────────────────────────────── */
+  useEffect(() => { nextQRef.current() }, [])
 
   useEffect(() => {
     if (mode !== 'practice') return
@@ -81,31 +87,33 @@ export default function PracticeView({ session, onExit, onAgain }) {
     if (st.status === 'done') recordActivity(st.attempted, st.correct)
   }, [st.status])
 
-  // ── Submit ────────────────────────────────────────────
+  /* ── Submit ──────────────────────────────────────── */
   function submit(inputVal) {
     const cur = stRef.current
     const val = inputVal ?? cur.input
-    if (cur.locked || !val || !question) return
+    if (cur.locked || !val || !qRef.current) return
 
-    const isCorrect = parseInt(val) === question.answer
+    const isCorrect = parseInt(val) === qRef.current.answer
+
+    setFeedKey(k => k + 1)
 
     if (isCorrect) {
       if (topic.srs && srsItem) recordSRS(topicId, srsItem, true)
       dispatch({ type: 'CORRECT' })
       setFlash('correct')
-      setTimeout(() => nextQRef.current(), mode === 'practice' ? 180 : 620)
+      setTimeout(() => nextQRef.current(), mode === 'practice' ? 200 : 650)
     } else {
       if (topic.srs && srsItem) recordSRS(topicId, srsItem, false)
       dispatch({ type: 'WRONG', reveal: mode === 'learn' })
       setFlash('wrong')
-      if (mode === 'practice') setTimeout(() => nextQRef.current(), 180)
+      if (mode === 'practice') setTimeout(() => nextQRef.current(), 200)
     }
   }
   submitRef.current = submit
 
-  // ── Desktop: space / enter on reveal ──────────────────
+  /* ── Desktop: space / enter to continue reveal ───── */
   useEffect(() => {
-    if (!isDesktop) return
+    if (!desktop) return
     const h = (e) => {
       if (stRef.current.status === 'reveal' && (e.key === ' ' || e.key === 'Enter')) {
         e.preventDefault(); nextQRef.current()
@@ -113,20 +121,20 @@ export default function PracticeView({ session, onExit, onAgain }) {
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [isDesktop])
+  }, [desktop])
 
-  // ── Desktop input ─────────────────────────────────────
+  /* ── Desktop: keyboard input ─────────────────────── */
   function handleDesktopChange(e) {
     const cur = stRef.current
     if (cur.locked) { e.target.value = cur.input; return }
     const clean  = e.target.value.replace(/\D/g, '')
-    const ansLen = question ? String(Math.abs(question.answer)).length : 4
+    const ansLen = qRef.current ? String(Math.abs(qRef.current.answer)).length : 4
     const val    = clean.slice(0, Math.min(ansLen + 1, 5))
     dispatch({ type: 'INPUT', val })
-    if (question && val.length === ansLen) setTimeout(() => submitRef.current(val), 80)
+    if (qRef.current && val.length === ansLen) setTimeout(() => submitRef.current(val), 80)
   }
 
-  // ── Numpad ────────────────────────────────────────────
+  /* ── Numpad ──────────────────────────────────────── */
   function handleNumpadKey(key) {
     const cur = stRef.current
     if (cur.locked) return
@@ -138,44 +146,80 @@ export default function PracticeView({ session, onExit, onAgain }) {
       if (cur.input.length >= 5) return
       const next = cur.input + key
       dispatch({ type: 'INPUT', val: next })
-      if (question && next.length === question.maxDigits) setTimeout(() => submitRef.current(next), 80)
+      if (qRef.current && next.length === qRef.current.maxDigits)
+        setTimeout(() => submitRef.current(next), 80)
     }
   }
 
-  // ── Helpers ───────────────────────────────────────────
-  const fmt    = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-  const qColor = flash === 'correct' ? '#3de88a' : flash === 'wrong' ? '#ff4d4d' : '#f0f0f0'
-  const aBorder = `2px solid ${flash === 'wrong' ? '#ff4d4d' : st.input ? '#e0ff5a' : '#333'}`
+  /* ── Helpers ─────────────────────────────────────── */
+  const fmt      = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+  const qColor   = flash === 'correct' ? GREEN : flash === 'wrong' ? RED : '#f0f0ee'
+  const qAnim    = flash === 'correct' ? 'anim-pop' : flash === 'wrong' ? 'anim-shake' : 'anim-fade-up'
+  const aBorderC = flash === 'wrong' ? RED : st.input ? ACCENT : '#1e1e1e'
 
-  // ── Result screen ─────────────────────────────────────
+  /* ── Result screen ───────────────────────────────── */
   if (st.status === 'done') {
-    const pct = st.attempted > 0 ? Math.round(st.correct / st.attempted * 100) : 0
+    const pct     = st.attempted > 0 ? Math.round(st.correct / st.attempted * 100) : 0
+    const pctColor = pct >= 80 ? GREEN : pct >= 50 ? '#e8c84a' : RED
+
     return (
-      <div className="fixed inset-0 bg-[#1a1a1a] flex flex-col items-center justify-center gap-6">
-        <p className="font-mono text-[10px] text-[#555] tracking-[0.25em] uppercase">
+      <div className="fixed inset-0 bg-[#080808] flex flex-col items-center justify-center gap-6 px-6">
+
+        <p className="font-mono text-[10px] text-[#282828] tracking-[0.28em] uppercase anim-fade-up">
           session complete
         </p>
-        <div className="font-mono font-light leading-none tracking-tight text-[#f0f0f0]"
-             style={{ fontSize: 80 }}>
-          {pct}%
+
+        {/* Percentage */}
+        <div
+          className="font-mono font-light leading-none tracking-tight anim-scale-in"
+          style={{ fontSize: 96, color: pctColor, animationDelay: '80ms' }}
+        >
+          {pct}<span style={{ fontSize: 40, color: pctColor + '80' }}>%</span>
         </div>
-        <p className="font-mono text-[#777] text-sm">{topic.name}</p>
-        <div className="flex gap-8 font-mono text-sm text-[#555]">
-          <span><span className="text-[#f0f0f0]">{st.correct}</span> correct</span>
-          <span><span className="text-[#f0f0f0]">{st.attempted}</span> total</span>
+
+        {/* Topic */}
+        <p
+          className="font-semibold text-[14px] text-[#383838] anim-fade-up"
+          style={{ animationDelay: '140ms' }}
+        >
+          {topic.name}
+        </p>
+
+        {/* Stats row */}
+        <div
+          className="flex gap-8 font-mono text-[13px] text-[#282828] anim-fade-up"
+          style={{ animationDelay: '190ms' }}
+        >
+          <span>
+            <span className="text-[#c0c0bb]">{st.correct}</span> correct
+          </span>
+          <span>
+            <span className="text-[#c0c0bb]">{st.attempted}</span> total
+          </span>
         </div>
-        <div className="flex gap-3 mt-2">
+
+        {/* Action buttons */}
+        <div
+          className="flex gap-3 mt-2 anim-fade-up"
+          style={{ animationDelay: '260ms' }}
+        >
           <button
             onClick={onExit}
-            className="px-6 py-3 bg-[#242424] border border-[#333] rounded-[12px]
-                       text-[#aaa] text-sm font-semibold hover:bg-[#2e2e2e] transition-colors"
+            className="px-6 py-3.5 bg-[#111] border border-[#1e1e1e] rounded-[13px]
+                       text-[#555] text-[13px] font-semibold transition-all
+                       hover:bg-[#181818] hover:text-[#888] active:scale-[0.96]"
           >
-            Home
+            ← Home
           </button>
           <button
             onClick={onAgain}
-            className="px-8 py-3 bg-[#e0ff5a] text-[#111800] rounded-[12px]
-                       text-sm font-bold hover:brightness-105 transition-all"
+            className="px-8 py-3.5 rounded-[13px] text-[13px] font-bold
+                       transition-all active:scale-[0.96]"
+            style={{
+              background: ACCENT,
+              color: '#0a1400',
+              boxShadow: `0 4px 20px ${ACCENT}30`,
+            }}
           >
             Again →
           </button>
@@ -184,68 +228,79 @@ export default function PracticeView({ session, onExit, onAgain }) {
     )
   }
 
-  // ── Practice screen ───────────────────────────────────
+  /* ── Practice screen ─────────────────────────────── */
   return (
-    <div className="fixed inset-0 bg-[#1a1a1a] flex flex-col text-[#f0f0f0]">
+    <div className="fixed inset-0 bg-[#080808] flex flex-col text-[#f0f0ee]">
 
-      {/* Header */}
+      {/* ── Header ── */}
       <header
-        className="flex-shrink-0 flex items-center justify-between px-5 border-b border-[#2a2a2a]"
+        className="flex-shrink-0 flex items-center justify-between px-5
+                   border-b border-[#111] bg-[#080808]"
         style={{ height: 52 }}
       >
-        <span className="font-mono text-[#e0ff5a] text-[11px] tracking-[0.1em] uppercase">
+        <span className="font-mono text-[11px] tracking-[0.14em] uppercase"
+              style={{ color: ACCENT + 'cc' }}>
           {topic.name}
         </span>
+
         <div className="flex items-center gap-4">
           {mode === 'practice' && timerSecs != null && (
-            <span className={`font-mono text-sm ${timerSecs <= 30 ? 'text-[#ff4d4d]' : 'text-[#666]'}`}>
+            <span
+              className={`font-mono text-[13px] tabular-nums ${timerSecs <= 30 ? 'anim-timer-warn' : ''}`}
+              style={{ color: timerSecs <= 30 ? RED : '#333' }}
+            >
               {fmt(timerSecs)}
             </span>
           )}
           {mode === 'learn' && (
-            <span className="font-mono text-xs text-[#666]">
-              Q {Math.min(st.qNum + 1, 20)} / 20
+            <span className="font-mono text-[11px] text-[#282828]">
+              {Math.min(st.qNum + 1, 20)}<span className="text-[#1e1e1e]"> / 20</span>
             </span>
           )}
           <button
-            onClick={() => { if (st.attempted === 0 || confirm('Exit? Progress is saved.')) onExit() }}
-            className="text-[#444] hover:text-[#aaa] transition-colors font-mono text-lg leading-none"
+            onClick={() => {
+              if (st.attempted === 0 || confirm('Exit? Progress is saved.')) onExit()
+            }}
+            className="w-7 h-7 flex items-center justify-center rounded-full
+                       text-[#2a2a2a] hover:text-[#666] hover:bg-[#141414]
+                       transition-all duration-150"
           >
-            ✕
+            <svg viewBox="0 0 10 10" className="w-2.5 h-2.5" fill="none">
+              <line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+              <line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
           </button>
         </div>
       </header>
 
       {/* Progress bar (learn mode) */}
       {mode === 'learn' && (
-        <div className="flex-shrink-0 h-px bg-[#2a2a2a]">
+        <div className="flex-shrink-0 h-[2px] bg-[#0f0f0f]">
           <div
-            className="h-full bg-[#e0ff5a] transition-all duration-300"
-            style={{ width: `${(st.qNum / 20) * 100}%` }}
+            className="h-full transition-all duration-500"
+            style={{ width: `${(st.qNum / 20) * 100}%`, background: ACCENT + '80' }}
           />
         </div>
       )}
 
-      {/* Arena */}
-      <div className="flex-1 flex flex-col items-center justify-center overflow-hidden">
-        <div
-          className="w-full flex flex-col items-center gap-5 px-8"
-          style={{ maxWidth: 540 }}
-        >
+      {/* ── Arena ── */}
+      <div className="flex-1 flex flex-col items-center justify-center overflow-hidden px-6">
+        <div className="w-full flex flex-col items-center gap-6" style={{ maxWidth: 520 }}>
 
           {/* Score row */}
-          <div className="flex gap-12 pb-5 border-b border-[#2a2a2a] w-full justify-center">
+          <div className="flex gap-14 pb-6 w-full justify-center border-b border-[#111]">
             {[
               { val: st.correct, label: 'correct' },
               { val: st.streak,  label: 'streak'  },
             ].map(s => (
               <div key={s.label} className="flex flex-col-reverse items-center gap-1">
-                <span className="font-mono text-[11px] text-[#555] tracking-[0.1em]">
+                <span className="font-mono text-[10px] text-[#242424] tracking-[0.14em] uppercase">
                   {s.label}
                 </span>
                 <span
-                  className="font-mono font-light leading-none tracking-tight text-[#f0f0f0]"
-                  style={{ fontSize: 48 }}
+                  key={s.val}                  /* remounts on change → retriggers anim */
+                  className="font-mono font-light leading-none tabular-nums anim-score-in"
+                  style={{ fontSize: 52, color: '#d8d8d4' }}
                 >
                   {s.val}
                 </span>
@@ -255,23 +310,26 @@ export default function PracticeView({ session, onExit, onAgain }) {
 
           {/* Type label */}
           <span
-            className="font-mono text-[10px] text-[#555] tracking-[0.2em] uppercase"
+            className="font-mono text-[10px] text-[#202020] tracking-[0.22em] uppercase"
             style={{ minHeight: 14 }}
           >
             {question?.typeLabel ?? '\u00a0'}
           </span>
 
-          {/* Question */}
+          {/* Question display */}
           <div
-            className="font-mono text-center leading-none tracking-tight transition-colors duration-100 select-none"
-            style={{ fontSize: 88, color: qColor }}
+            key={feedKey}                       /* remounts on each submit → CSS anim fires */
+            ref={qDisplayRef}
+            className={`font-mono text-center leading-none tracking-tight select-none
+                        transition-colors duration-100 ${qAnim}`}
+            style={{ fontSize: 84, color: qColor }}
           >
             {question?.display ?? '—'}
           </div>
 
-          {/* Answer input */}
-          <div style={{ width: '100%', maxWidth: 300 }}>
-            {isDesktop ? (
+          {/* Answer area */}
+          <div style={{ width: '100%', maxWidth: 280 }}>
+            {desktop ? (
               <input
                 ref={inputRef}
                 type="text"
@@ -279,71 +337,83 @@ export default function PracticeView({ session, onExit, onAgain }) {
                 value={st.input}
                 onChange={handleDesktopChange}
                 className="w-full bg-transparent outline-none font-mono font-light
-                           text-[#e0ff5a] text-center pb-2 caret-[#e0ff5a] transition-colors"
-                style={{ fontSize: 64, border: 'none', borderBottom: aBorder }}
+                           text-center pb-2.5 caret-[#d4f53c] transition-colors duration-100"
+                style={{
+                  fontSize: 60,
+                  color: flash === 'wrong' ? RED : ACCENT,
+                  border: 'none',
+                  borderBottom: `2px solid ${aBorderC}`,
+                }}
               />
             ) : (
               <div
-                className="font-mono font-light text-center pb-2 transition-colors select-none"
+                className="font-mono font-light text-center pb-2.5 select-none
+                           transition-colors duration-100 tabular-nums"
                 style={{
-                  fontSize: 44,
-                  color: flash === 'wrong' ? '#ff4d4d' : '#e0ff5a',
-                  borderBottom: aBorder,
+                  fontSize: 48,
+                  color: flash === 'wrong' ? RED : ACCENT,
+                  borderBottom: `2px solid ${aBorderC}`,
                 }}
               >
-                {st.input || '_'}
+                {st.input || <span style={{ color: '#1e1e1e' }}>_</span>}
               </div>
             )}
 
-            {/* Learn-mode feedback line */}
+            {/* Learn feedback line */}
             {mode === 'learn' && (
               <div
-                className="font-mono text-[11px] text-center mt-2 transition-colors"
+                className="font-mono text-[11px] text-center mt-2 transition-colors duration-150"
                 style={{
                   minHeight: 16,
-                  color: flash === 'correct' ? '#3de88a'
-                       : flash === 'wrong'   ? '#ff4d4d'
+                  color: flash === 'correct' ? GREEN
+                       : flash === 'wrong'   ? RED
                        : 'transparent',
                 }}
               >
-                {flash === 'correct' ? '✓ correct' : flash === 'wrong' ? '✗ wrong' : '.'}
+                {flash === 'correct' ? '✓  correct' : flash === 'wrong' ? '✗  wrong' : '.'}
               </div>
             )}
           </div>
 
           {/* Desktop hint */}
-          {isDesktop && (
-            <span className="font-mono text-[11px] text-[#444] tracking-[0.08em]">
-              type · auto-submits · space to continue
-            </span>
+          {desktop && (
+            <p className="font-mono text-[11px] text-[#1e1e1e] tracking-[0.08em]">
+              type · auto-submits on correct digit count
+            </p>
           )}
 
         </div>
       </div>
 
-      {/* Numpad (mobile) */}
-      {!isDesktop && <NumPad onKey={handleNumpadKey} />}
+      {/* Mobile numpad */}
+      {!desktop && <NumPad onKey={handleNumpadKey} />}
 
-      {/* Wrong-answer reveal overlay */}
+      {/* Wrong-answer reveal (learn mode) */}
       {st.status === 'reveal' && (
         <div
-          className="absolute inset-x-0 bottom-0 z-20 bg-[#1a1a1a]
-                     flex flex-col items-center justify-center gap-4 cursor-pointer"
-          style={{ top: 52 }}
+          className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center
+                     justify-center gap-5 cursor-pointer anim-fade-in"
+          style={{
+            top: 52,
+            background: '#080808',
+          }}
           onClick={() => nextQRef.current()}
         >
-          <span className="font-mono text-[11px] text-[#ff4d4d] tracking-[0.2em] uppercase">
-            ✗ incorrect
+          <span className="font-mono text-[10px] tracking-[0.26em] uppercase"
+                style={{ color: RED + 'cc' }}>
+            ✗  incorrect
           </span>
-          <span className="font-mono text-2xl text-[#666]">{question?.display}</span>
+          <span className="font-mono text-[22px] text-[#282828]">
+            {question?.display}
+          </span>
           <span
-            className="font-mono font-light text-[#e0ff5a] leading-none tracking-tight"
-            style={{ fontSize: 80 }}
+            className="font-mono font-light leading-none tracking-tight anim-scale-in"
+            style={{ fontSize: 80, color: GREEN }}
           >
             {question?.answer}
           </span>
-          <span className="font-mono text-[11px] text-[#444] mt-4">
-            {isDesktop ? 'press space or enter to continue' : 'tap anywhere to continue'}
+          <span className="font-mono text-[11px] text-[#1e1e1e] mt-6">
+            {desktop ? 'press space or enter to continue' : 'tap anywhere to continue'}
           </span>
         </div>
       )}
