@@ -6,7 +6,7 @@
 
 // ── Device check ─────────────────────────────────────
 function isDesktop() {
-  return window.matchMedia('(pointer: fine)').matches;
+  return window.matchMedia('(pointer: fine)').matches || window.innerWidth >= 700;
 }
 
 // ── Screen history stack ──────────────────────────────

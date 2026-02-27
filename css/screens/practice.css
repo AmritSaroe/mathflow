@@ -64,7 +64,7 @@
 }
 
 /* Desktop: top zone fills full height (no numpad) */
-@media (pointer: fine) {
+@media (pointer: fine), (min-width: 700px) {
   .practice-top {
     bottom: 0;
     gap: 28px;
@@ -94,7 +94,7 @@
   width: 100%;
 }
 
-@media (pointer: fine) {
+@media (pointer: fine), (min-width: 700px) {
   .question { font-size: 88px; }
 }
 
@@ -160,7 +160,7 @@
   animation: shake 0.28s ease;
 }
 
-@media (pointer: fine) {
+@media (pointer: fine), (min-width: 700px) {
   .answer-display { display: none; }
   .answer-input   { display: block; }
   .answer-row     { max-width: 420px; }
@@ -208,7 +208,7 @@
   letter-spacing: 0.08em;
 }
 
-@media (pointer: fine) {
+@media (pointer: fine), (min-width: 700px) {
   .desktop-hint { display: block; }
 }
 
@@ -220,7 +220,7 @@
   background: var(--bg);
 }
 
-@media (pointer: fine) {
+@media (pointer: fine), (min-width: 700px) {
   .practice-bottom { display: none; }
 }
 
