@@ -314,3 +314,48 @@
   color: var(--muted);
   margin-top: 8px;
 }
+
+/* ── Desktop: focused arena layout ─────────────────────
+   Content constrained to a readable column, score stats
+   pulled above the question with the number prominent.
+────────────────────────────────────────────────────────── */
+@media (pointer: fine), (min-width: 700px) {
+  /* Centred column — never wider than 540px */
+  .practice-top {
+    left: 50%;
+    right: auto;
+    width: min(540px, 100%);
+    transform: translateX(-50%);
+    padding: 0 32px;
+    gap: 20px;
+  }
+
+  /* Score row moves above the question */
+  .score-row {
+    order: -1;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    gap: 48px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Each stat: big number on top, label below */
+  .score-row > div {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .score-row .val {
+    display: block;
+    font-size: 48px;
+    font-weight: 300;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+}

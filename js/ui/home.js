@@ -31,9 +31,6 @@ function makeTopicCard(topicId, topic) {
   const div     = document.createElement('div');
   div.className = 'topic-card';
 
-  const mastery = topic.srs ? getMasteryPercent(topicId, topic.pool) : null;
-  const overdue = topic.srs ? getOverdueCount(topicId, topic.pool)   : 0;
-
   div.innerHTML = `
     <div class="topic-icon">${getTopicIcon(topic.section)}</div>
     <div class="topic-info">
@@ -41,16 +38,16 @@ function makeTopicCard(topicId, topic) {
       <div class="topic-sub">${topic.desc}</div>
     </div>
     <div class="topic-right">
-      ${overdue > 0
-        ? `<div style="background:var(--wrong);color:#fff;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px">${overdue} due</div>`
-        : (topic.srs ? `<div class="srs-badge">SRS</div>` : '')}
-      ${mastery !== null
-        ? `<div class="mastery-bar-wrap"><div class="mastery-bar-fill" style="width:${mastery}%"></div></div>`
-        : ''}
       <div class="topic-arrow">›</div>
     </div>`;
 
-  div.onclick = () => openMode(topicId);
+  div.onclick = () => {
+    if (isDesktop()) {
+      document.querySelectorAll('.topic-card').forEach(c => c.classList.remove('sidebar-active'));
+      div.classList.add('sidebar-active');
+    }
+    openMode(topicId);
+  };
   return div;
 }
 
