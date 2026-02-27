@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && cp dist/index.html index.html && rm -rf assets && cp -r dist/assets assets",
+    "build": "vite build && node scripts/deploy.js",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -17,6 +17,7 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
-    "vite": "^6.0.3"
+    "vite": "^6.0.3",
+    "vite-plugin-pwa": "^1.2.0"
   }
 }

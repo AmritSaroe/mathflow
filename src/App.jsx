@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import HomeView from './views/HomeView'
 import PracticeView from './views/PracticeView'
+import InstallPrompt from './components/InstallPrompt'
 
 export default function App() {
   const [view, setView]         = useState('home')
@@ -24,5 +25,10 @@ export default function App() {
     )
   }
 
-  return <HomeView onStartSession={startSession} />
+  return (
+    <>
+      <HomeView onStartSession={startSession} />
+      <InstallPrompt />
+    </>
+  )
 }
