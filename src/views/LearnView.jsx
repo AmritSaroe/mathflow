@@ -48,6 +48,7 @@ function StepCard({ step, idx, total }) {
           lineHeight: 1.2,
           color: idx === total - 1 ? 'var(--md-custom-color-correct)' : 'var(--md-sys-color-on-surface)',
           letterSpacing: '-0.5px',
+          whiteSpace: 'nowrap',
         }}
       >
         {step.display}
@@ -119,8 +120,8 @@ export default function LearnView({ session, onExit, onStartPractice }) {
       <div
         style={{
           flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'flex-end',
-          padding: '24px 24px 0',
+          alignItems: 'center', justifyContent: 'center',
+          padding: '16px 24px 0',
         }}
       >
         <div style={{ width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
