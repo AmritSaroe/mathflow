@@ -7,7 +7,7 @@ const root   = dirname(dirname(fileURLToPath(import.meta.url)))
 const svgBuf = readFileSync(join(root, 'logo.svg'))
 const outDir = join(root, 'public', 'icons')
 
-const SIZES = [48, 72, 96, 128, 192, 512]
+const SIZES = [48, 72, 96, 128, 180, 192, 512]
 
 await Promise.all(
   SIZES.map(size =>
