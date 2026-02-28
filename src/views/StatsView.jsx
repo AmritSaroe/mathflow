@@ -28,6 +28,7 @@ function FilterChip({ label, selected, onClick }) {
       style={{
         padding: '6px 16px',
         borderRadius: 8,
+        flexShrink: 0,
         border: `1px solid ${selected ? 'transparent' : 'var(--md-sys-color-outline)'}`,
         background: selected ? 'var(--md-sys-color-secondary-container)' : 'none',
         color: selected ? 'var(--md-sys-color-on-secondary-container)' : 'var(--md-sys-color-on-surface-variant)',
