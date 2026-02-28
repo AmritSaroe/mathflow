@@ -15,7 +15,9 @@ if (existsSync(builtInSrc)) {
   // but after hoisting to dist/index.html the correct path is ./assets/
   writeFileSync(
     'dist/index.html',
-    readFileSync('dist/index.html', 'utf8').replaceAll('../assets/', './assets/')
+    readFileSync('dist/index.html', 'utf8')
+      .replaceAll('src="../', 'src="./')
+      .replaceAll('href="../', 'href="./')
   )
   // Remove the now-empty dist/src/ directory if nothing else is in it
   try { rmSync('dist/src', { recursive: true }) } catch {}
