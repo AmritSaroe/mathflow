@@ -15,7 +15,7 @@ export default defineConfig({
         short_name: 'MathFlow',
         description: 'Master mental arithmetic — works offline',
         theme_color: '#6750a4',
-        background_color: '#4F378B',
+        background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait-primary',
         start_url: './',
