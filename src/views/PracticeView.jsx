@@ -1,25 +1,21 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
+import { motion, useAnimation, AnimatePresence } from 'framer-motion'
 import { pickSRSItem, recordSRS } from '../engine/srs'
 import { recordActivity } from '../engine/storage'
 import NumPad from '../components/NumPad'
 
-/* ── Constants ───────────────────────────────────────── */
-const ACCENT = '#d4f53c'
-const GREEN  = '#22d36e'
-const RED    = '#f04848'
-
-/* ── Session reducer ─────────────────────────────────── */
+/* ── Session reducer (logic unchanged) ────────────────── */
 const INIT = {
   input: '', locked: false,
-  correct: 0, attempted: 0, streak: 0, qNum: 0,
+  correct: 0, attempted: 0, qNum: 0,
   status: 'question', // 'question' | 'reveal' | 'done'
 }
 
 function reducer(s, a) {
   switch (a.type) {
     case 'INPUT':    return { ...s, input: a.val }
-    case 'CORRECT':  return { ...s, locked: true, correct: s.correct + 1, attempted: s.attempted + 1, streak: s.streak + 1, qNum: s.qNum + 1 }
-    case 'WRONG':    return { ...s, locked: true, attempted: s.attempted + 1, streak: 0, qNum: s.qNum + 1, status: a.reveal ? 'reveal' : 'question' }
+    case 'CORRECT':  return { ...s, locked: true, correct: s.correct + 1, attempted: s.attempted + 1, qNum: s.qNum + 1 }
+    case 'WRONG':    return { ...s, locked: true, attempted: s.attempted + 1, qNum: s.qNum + 1, status: a.reveal ? 'reveal' : 'question' }
     case 'CONTINUE': return { ...s, input: '', locked: false, status: 'question' }
     case 'DONE':     return { ...s, status: 'done' }
     default:         return s
@@ -29,26 +25,92 @@ function reducer(s, a) {
 const isDesktop = () =>
   window.matchMedia('(pointer: fine)').matches || window.innerWidth >= 700
 
-/* ── Component ───────────────────────────────────────── */
-export default function PracticeView({ session, onExit, onAgain }) {
+/* ── M3 Linear Progress Indicator ─────────────────────── */
+function LinearProgress({ value }) {
+  return (
+    <div style={{ height: 4, background: 'var(--md-sys-color-surface-variant)', flexShrink: 0 }}>
+      <div style={{
+        height: '100%',
+        width: `${Math.min(1, value) * 100}%`,
+        background: 'var(--md-sys-color-primary)',
+        transition: 'width 400ms cubic-bezier(0.2, 0, 0, 1)',
+        borderRadius: '0 2px 2px 0',
+      }} />
+    </div>
+  )
+}
+
+/* ── M3 AlertDialog — exit confirm ────────────────────── */
+function ExitDialog({ onConfirm, onCancel }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+    >
+      <div onClick={onCancel} style={{ position: 'absolute', inset: 0, background: 'var(--md-sys-color-scrim)', opacity: 0.32 }} />
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        transition={{ ease: [0.2, 0, 0, 1], duration: 0.2 }}
+        style={{
+          position: 'relative', zIndex: 1,
+          background: 'var(--md-sys-color-surface-container-high)',
+          borderRadius: 28, padding: '24px 24px 20px',
+          width: '100%', maxWidth: 320,
+          boxShadow: '0 6px 24px rgba(0,0,0,0.3)',
+        }}
+      >
+        <h3 className="md-headline-small" style={{ color: 'var(--md-sys-color-on-surface)', marginBottom: 16 }}>
+          Exit session?
+        </h3>
+        <p className="md-body-medium" style={{ color: 'var(--md-sys-color-on-surface-variant)', marginBottom: 24 }}>
+          Progress in this session won't be saved.
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button
+            onClick={onCancel}
+            className="md-state"
+            style={{ padding: '10px 24px', borderRadius: 20, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--md-sys-color-primary)' }}
+          >
+            <span className="md-label-large">Cancel</span>
+          </button>
+          <button
+            onClick={onConfirm}
+            className="md-state"
+            style={{ padding: '10px 24px', borderRadius: 20, border: 'none', background: 'var(--md-sys-color-error)', color: 'var(--md-sys-color-on-error)', cursor: 'pointer' }}
+          >
+            <span className="md-label-large">Exit</span>
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+/* ── PracticeView ──────────────────────────────────────── */
+export default function PracticeView({ session, onDone, onExit }) {
   const { topicId, topic, mode, timerMins } = session
 
-  const [st, dispatch]       = useReducer(reducer, INIT)
-  const [question, setQ]     = useState(null)
+  const [st, dispatch]        = useReducer(reducer, INIT)
+  const [question, setQ]      = useState(null)
   const [srsItem, setSrsItem] = useState(null)
   const [timerSecs, setTimer] = useState(mode === 'practice' ? timerMins * 60 : null)
-  const [flash, setFlash]    = useState(null)   // 'correct' | 'wrong' | null
-  const [feedKey, setFeedKey] = useState(0)     // increments per submit → retriggers CSS anim
+  const [flash, setFlash]     = useState(null)   // 'correct' | 'wrong' | null
+  const [shaking, setShaking] = useState(false)
+  const [showExit, setShowExit] = useState(false)
 
-  const desktop    = isDesktop()
-  const inputRef   = useRef(null)
-  const timerRef   = useRef(null)
-  const isDoneRef  = useRef(false)          // sync flag — set before React batches DONE
-  const stRef      = useRef(st); stRef.current = st
+  const qControls = useAnimation()
+  const desktop   = isDesktop()
+  const inputRef  = useRef(null)
+  const timerRef  = useRef(null)
+  const isDoneRef = useRef(false)
+  const stRef     = useRef(st); stRef.current = st
   const qRef      = useRef(question); qRef.current = question
-  const qDisplayRef = useRef(null)
 
-  /* ── Question generation ─────────────────────────── */
+  /* ── Question generation (logic unchanged) ─────────── */
   function genQ() {
     if (topic.srs) {
       const it = pickSRSItem(topicId, topic.pool)
@@ -57,23 +119,27 @@ export default function PracticeView({ session, onExit, onAgain }) {
     return { q: topic.generate(), it: null }
   }
 
-  function nextQuestion() {
+  /* ── Next question + M3 slide-in animation ──────────── */
+  const nextQRef = useRef(null)
+  nextQRef.current = function nextQuestion() {
     if (isDoneRef.current || stRef.current.status === 'done') return
     if (mode === 'learn' && stRef.current.qNum >= 20) {
       dispatch({ type: 'DONE' }); return
     }
     const { q, it } = genQ()
+    qControls.set({ x: '100vw', opacity: 0 })
     setQ(q); setSrsItem(it); setFlash(null)
     dispatch({ type: 'CONTINUE' })
+    qControls.start({ x: 0, opacity: 1, transition: { ease: [0, 0, 0, 1], duration: 0.3 } })
     if (desktop) setTimeout(() => inputRef.current?.focus(), 80)
   }
 
-  const nextQRef  = useRef(nextQuestion); nextQRef.current = nextQuestion
   const submitRef = useRef(null)
 
-  /* ── Init & timer ────────────────────────────────── */
-  useEffect(() => { nextQRef.current() }, [])
+  /* ── Init (logic unchanged) ─────────────────────────── */
+  useEffect(() => { nextQRef.current() }, []) // eslint-disable-line
 
+  /* ── Timer (logic unchanged) ─────────────────────────── */
   useEffect(() => {
     if (mode !== 'practice') return
     timerRef.current = setInterval(() => {
@@ -83,13 +149,41 @@ export default function PracticeView({ session, onExit, onAgain }) {
       })
     }, 1000)
     return () => clearInterval(timerRef.current)
-  }, [])
+  }, []) // eslint-disable-line
+
+  /* ── Done → record activity + notify parent ─────────── */
+  useEffect(() => {
+    if (st.status === 'done') {
+      recordActivity(st.attempted, st.correct)
+      onDone({ correct: st.correct, attempted: st.attempted })
+    }
+  }, [st.status]) // eslint-disable-line
+
+  /* ── Auto-advance reveal after 1.5s (learn mode) ────── */
+  const doSlideNext = async () => {
+    await qControls.start({ x: '-100vw', opacity: 0, transition: { ease: [0.3, 0, 1, 1], duration: 0.25 } })
+    nextQRef.current()
+  }
 
   useEffect(() => {
-    if (st.status === 'done') recordActivity(st.attempted, st.correct)
-  }, [st.status])
+    if (st.status !== 'reveal') return
+    const t = setTimeout(doSlideNext, 1500)
+    return () => clearTimeout(t)
+  }, [st.status]) // eslint-disable-line
 
-  /* ── Submit ──────────────────────────────────────── */
+  /* ── Desktop: space/enter skips reveal early ─────────── */
+  useEffect(() => {
+    if (!desktop) return
+    const h = (e) => {
+      if (stRef.current.status === 'reveal' && (e.key === ' ' || e.key === 'Enter')) {
+        e.preventDefault(); doSlideNext()
+      }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [desktop]) // eslint-disable-line
+
+  /* ── Submit (logic unchanged + M3 animations) ────────── */
   function submit(inputVal) {
     const cur = stRef.current
     const val = inputVal ?? cur.input
@@ -97,35 +191,34 @@ export default function PracticeView({ session, onExit, onAgain }) {
 
     const isCorrect = parseInt(val) === qRef.current.answer
 
-    setFeedKey(k => k + 1)
-
     if (isCorrect) {
       if (topic.srs && srsItem) recordSRS(topicId, srsItem, true)
       dispatch({ type: 'CORRECT' })
       setFlash('correct')
-      setTimeout(() => nextQRef.current(), mode === 'practice' ? 200 : 650)
+      // Correct: green flash → slide out left → new q slides in from right
+      ;(async () => {
+        await new Promise(r => setTimeout(r, mode === 'practice' ? 80 : 200))
+        await qControls.start({ x: '-100vw', opacity: 0, transition: { ease: [0.3, 0, 1, 1], duration: 0.25 } })
+        nextQRef.current()
+      })()
     } else {
       if (topic.srs && srsItem) recordSRS(topicId, srsItem, false)
       dispatch({ type: 'WRONG', reveal: mode === 'learn' })
       setFlash('wrong')
-      if (mode === 'practice') setTimeout(() => nextQRef.current(), 200)
+      setShaking(true)
+      setTimeout(() => setShaking(false), 450)
+      if (mode === 'practice') {
+        setTimeout(async () => {
+          await qControls.start({ x: '-100vw', opacity: 0, transition: { ease: [0.3, 0, 1, 1], duration: 0.25 } })
+          nextQRef.current()
+        }, 300)
+      }
+      // learn: reveal overlay shown + auto-advances via useEffect
     }
   }
   submitRef.current = submit
 
-  /* ── Desktop: space / enter to continue reveal ───── */
-  useEffect(() => {
-    if (!desktop) return
-    const h = (e) => {
-      if (stRef.current.status === 'reveal' && (e.key === ' ' || e.key === 'Enter')) {
-        e.preventDefault(); nextQRef.current()
-      }
-    }
-    window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
-  }, [desktop])
-
-  /* ── Desktop: keyboard input ─────────────────────── */
+  /* ── Desktop keyboard (logic unchanged) ─────────────── */
   function handleDesktopChange(e) {
     const cur = stRef.current
     if (cur.locked) { e.target.value = cur.input; return }
@@ -136,7 +229,7 @@ export default function PracticeView({ session, onExit, onAgain }) {
     if (qRef.current && val.length === ansLen) setTimeout(() => submitRef.current(val), 80)
   }
 
-  /* ── Numpad ──────────────────────────────────────── */
+  /* ── Numpad (logic unchanged) ────────────────────────── */
   function handleNumpadKey(key) {
     const cur = stRef.current
     if (cur.locked) return
@@ -153,273 +246,193 @@ export default function PracticeView({ session, onExit, onAgain }) {
     }
   }
 
-  /* ── Helpers ─────────────────────────────────────── */
-  const fmt      = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-  const qColor   = flash === 'correct' ? GREEN : flash === 'wrong' ? RED : '#f0f0ee'
-  const qAnim    = flash === 'correct' ? 'anim-pop' : flash === 'wrong' ? 'anim-shake' : 'anim-fade-up'
-  const aBorderC = flash === 'wrong' ? RED : st.input ? ACCENT : '#1e1e1e'
+  const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
-  /* ── Result screen ───────────────────────────────── */
-  if (st.status === 'done') {
-    const pct     = st.attempted > 0 ? Math.round(st.correct / st.attempted * 100) : 0
-    const pctColor = pct >= 80 ? GREEN : pct >= 50 ? '#e8c84a' : RED
+  const questionColor = flash === 'correct'
+    ? 'var(--md-custom-color-correct)'
+    : flash === 'wrong'
+    ? 'var(--md-sys-color-error)'
+    : 'var(--md-sys-color-on-surface)'
 
-    return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center gap-6 px-6"
-           style={{ background: 'var(--bg)' }}>
+  const answerColor = flash === 'correct'
+    ? 'var(--md-custom-color-correct)'
+    : flash === 'wrong'
+    ? 'var(--md-sys-color-error)'
+    : 'var(--md-sys-color-primary)'
 
-        <p className="font-mono text-[10px] text-[#282828] tracking-[0.28em] uppercase anim-fade-up">
-          session complete
-        </p>
+  const inputBorderColor = flash === 'wrong'
+    ? 'var(--md-sys-color-error)'
+    : st.input ? 'var(--md-sys-color-primary)'
+    : 'var(--md-sys-color-outline)'
 
-        {/* Percentage */}
-        <div
-          className="font-mono font-light leading-none tracking-tight anim-scale-in"
-          style={{ fontSize: 96, color: pctColor, animationDelay: '80ms' }}
-        >
-          {pct}<span style={{ fontSize: 40, color: pctColor + '80' }}>%</span>
-        </div>
-
-        {/* Topic */}
-        <p
-          className="font-semibold text-[14px] text-[#383838] anim-fade-up"
-          style={{ animationDelay: '140ms' }}
-        >
-          {topic.name}
-        </p>
-
-        {/* Stats row */}
-        <div
-          className="flex gap-8 font-mono text-[13px] text-[#282828] anim-fade-up"
-          style={{ animationDelay: '190ms' }}
-        >
-          <span>
-            <span className="text-[#c0c0bb]">{st.correct}</span> correct
-          </span>
-          <span>
-            <span className="text-[#c0c0bb]">{st.attempted}</span> total
-          </span>
-        </div>
-
-        {/* Action buttons */}
-        <div
-          className="flex gap-3 mt-2 anim-fade-up"
-          style={{ animationDelay: '260ms' }}
-        >
-          <button
-            onClick={onExit}
-            className="px-6 py-3.5 bg-[#111] border border-[#1e1e1e] rounded-[13px]
-                       text-[#555] text-[13px] font-semibold transition-all
-                       hover:bg-[#181818] hover:text-[#888] active:scale-[0.96]"
-          >
-            ← Home
-          </button>
-          <button
-            onClick={onAgain}
-            className="px-8 py-3.5 rounded-[13px] text-[13px] font-bold
-                       transition-all active:scale-[0.96]"
-            style={{
-              background: ACCENT,
-              color: '#0a1400',
-              boxShadow: `0 4px 20px ${ACCENT}30`,
-            }}
-          >
-            Again →
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  /* ── Practice screen ─────────────────────────────── */
   return (
-    <div className="fixed inset-0 flex flex-col" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: 'var(--md-sys-color-background)' }}>
 
-      {/* ── Header ── */}
-      <header
-        className="flex-shrink-0 flex items-center justify-between px-5 border-b"
-        style={{ borderColor: 'var(--border)', background: 'var(--bg)', height: 52 }}
-      >
-        <span className="font-mono text-[11px] tracking-[0.14em] uppercase"
-              style={{ color: ACCENT + 'cc' }}>
-          {topic.name}
-        </span>
+      {/* M3 Linear Progress Indicator */}
+      {mode === 'learn' && <LinearProgress value={st.qNum / 20} />}
+      {mode === 'practice' && timerMins && <LinearProgress value={timerSecs / (timerMins * 60)} />}
 
-        <div className="flex items-center gap-4">
+      {/* Top bar — X close + counter */}
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px 4px 4px', minHeight: 52 }}>
+        <button
+          onClick={() => { if (st.attempted === 0) { onExit(); return }; setShowExit(true) }}
+          className="md-state"
+          aria-label="Exit session"
+          style={{ width: 48, height: 48, borderRadius: 24, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--md-sys-color-on-surface-variant)' }}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M4 4l12 12M16 4L4 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingRight: 8 }}>
           {mode === 'practice' && timerSecs != null && (
-            <span
-              className={`font-mono text-[13px] tabular-nums ${timerSecs <= 30 ? 'anim-timer-warn' : ''}`}
-              style={{ color: timerSecs <= 30 ? RED : '#333' }}
-            >
+            <span className={`dm-mono md-label-medium${timerSecs <= 30 ? ' anim-timer-warn' : ''}`}
+                  style={{ color: timerSecs <= 30 ? 'var(--md-sys-color-error)' : 'var(--md-sys-color-on-surface-variant)' }}>
               {fmt(timerSecs)}
             </span>
           )}
           {mode === 'learn' && (
-            <span className="font-mono text-[11px] text-[#282828]">
-              {Math.min(st.qNum + 1, 20)}<span className="text-[#1e1e1e]"> / 20</span>
+            <span className="md-label-medium" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
+              {Math.min(st.qNum + 1, 20)}<span style={{ color: 'var(--md-sys-color-outline)' }}> / 20</span>
             </span>
           )}
-          <button
-            onClick={() => {
-              if (st.attempted === 0 || confirm('Exit? Progress is saved.')) onExit()
-            }}
-            className="w-7 h-7 flex items-center justify-center rounded-full
-                       text-[#2a2a2a] hover:text-[#666] hover:bg-[#141414]
-                       transition-all duration-150"
-          >
-            <svg viewBox="0 0 10 10" className="w-2.5 h-2.5" fill="none">
-              <line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-              <line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-            </svg>
-          </button>
         </div>
-      </header>
+      </div>
 
-      {/* Progress bar (learn mode) */}
-      {mode === 'learn' && (
-        <div className="flex-shrink-0 h-[2px] bg-[#0f0f0f]">
-          <div
-            className="h-full transition-all duration-500"
-            style={{ width: `${(st.qNum / 20) * 100}%`, background: ACCENT + '80' }}
-          />
+      {/* Arena */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '0 24px', gap: 20 }}>
+
+        {/* Correct / Attempted counters */}
+        <div style={{ display: 'flex', gap: 48, paddingBottom: 20, borderBottom: '1px solid var(--md-sys-color-outline-variant)', width: '100%', maxWidth: 480, justifyContent: 'center' }}>
+          {[{ val: st.correct, label: 'correct' }, { val: st.attempted, label: 'total' }].map(s => (
+            <div key={s.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <span key={s.val} className="dm-mono anim-score-in"
+                    style={{ fontSize: 44, lineHeight: 1, fontWeight: 300, color: 'var(--md-sys-color-on-surface)' }}>
+                {s.val}
+              </span>
+              <span className="md-label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                {s.label}
+              </span>
+            </div>
+          ))}
         </div>
-      )}
 
-      {/* ── Arena ── */}
-      <div className="flex-1 flex flex-col items-center justify-center overflow-hidden px-6">
-        <div className="w-full flex flex-col items-center gap-6" style={{ maxWidth: 520 }}>
+        {/* Operation label — Label Small, muted */}
+        <span className="md-label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', letterSpacing: '0.2em', textTransform: 'uppercase', minHeight: 16 }}>
+          {question?.typeLabel ?? '\u00a0'}
+        </span>
 
-          {/* Score row */}
-          <div className="flex gap-14 pb-6 w-full justify-center border-b border-[#111]">
-            {[
-              { val: st.correct, label: 'correct' },
-              { val: st.streak,  label: 'streak'  },
-            ].map(s => (
-              <div key={s.label} className="flex flex-col-reverse items-center gap-1">
-                <span className="font-mono text-[10px] text-[#242424] tracking-[0.14em] uppercase">
-                  {s.label}
-                </span>
-                <span
-                  key={s.val}                  /* remounts on change → retriggers anim */
-                  className="font-mono font-light leading-none tabular-nums anim-score-in"
-                  style={{ fontSize: 52, color: '#d8d8d4' }}
-                >
-                  {s.val}
-                </span>
-              </div>
-            ))}
-          </div>
+        {/* Question — Display Large, DM Mono, Framer Motion animated */}
+        <motion.div
+          animate={qControls}
+          className={`dm-mono${shaking ? ' anim-shake' : ''}`}
+          style={{
+            fontSize: 'clamp(44px, 12vw, 68px)',
+            lineHeight: 1,
+            letterSpacing: '-0.5px',
+            textAlign: 'center',
+            color: questionColor,
+            transition: 'color 100ms',
+            userSelect: 'none',
+            maxWidth: 480,
+            width: '100%',
+          }}
+        >
+          {question?.display ?? '—'}
+        </motion.div>
 
-          {/* Type label */}
-          <span
-            className="font-mono text-[10px] text-[#202020] tracking-[0.22em] uppercase"
-            style={{ minHeight: 14 }}
-          >
-            {question?.typeLabel ?? '\u00a0'}
-          </span>
-
-          {/* Question display */}
-          <div
-            key={feedKey}                       /* remounts on each submit → CSS anim fires */
-            ref={qDisplayRef}
-            className={`font-mono text-center leading-none tracking-tight select-none
-                        transition-colors duration-100 ${qAnim}`}
-            style={{ fontSize: 84, color: qColor }}
-          >
-            {question?.display ?? '—'}
-          </div>
-
-          {/* Answer area */}
-          <div style={{ width: '100%', maxWidth: 280 }}>
-            {desktop ? (
-              <input
-                ref={inputRef}
-                type="text"
-                inputMode="numeric"
-                value={st.input}
-                onChange={handleDesktopChange}
-                className="w-full bg-transparent outline-none font-mono font-light
-                           text-center pb-2.5 caret-[#d4f53c] transition-colors duration-100"
-                style={{
-                  fontSize: 60,
-                  color: flash === 'wrong' ? RED : ACCENT,
-                  border: 'none',
-                  borderBottom: `2px solid ${aBorderC}`,
-                }}
-              />
-            ) : (
-              <div
-                className="font-mono font-light text-center pb-2.5 select-none
-                           transition-colors duration-100 tabular-nums"
-                style={{
-                  fontSize: 48,
-                  color: flash === 'wrong' ? RED : ACCENT,
-                  borderBottom: `2px solid ${aBorderC}`,
-                }}
-              >
-                {st.input || <span style={{ color: '#1e1e1e' }}>_</span>}
-              </div>
-            )}
-
-            {/* Learn feedback line */}
-            {mode === 'learn' && (
-              <div
-                className="font-mono text-[11px] text-center mt-2 transition-colors duration-150"
-                style={{
-                  minHeight: 16,
-                  color: flash === 'correct' ? GREEN
-                       : flash === 'wrong'   ? RED
-                       : 'transparent',
-                }}
-              >
-                {flash === 'correct' ? '✓  correct' : flash === 'wrong' ? '✗  wrong' : '.'}
-              </div>
-            )}
-          </div>
-
-          {/* Desktop hint */}
-          {desktop && (
-            <p className="font-mono text-[11px] text-[#1e1e1e] tracking-[0.08em]">
-              type · auto-submits on correct digit count
-            </p>
+        {/* Answer display */}
+        <div style={{ width: '100%', maxWidth: 340 }}>
+          {desktop ? (
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="numeric"
+              value={st.input}
+              onChange={handleDesktopChange}
+              className="dm-mono"
+              style={{
+                width: '100%', background: 'transparent', outline: 'none',
+                fontSize: 48, fontWeight: 300, textAlign: 'center',
+                paddingBottom: 8, caretColor: 'var(--md-sys-color-primary)',
+                color: answerColor, border: 'none',
+                borderBottom: `2px solid ${inputBorderColor}`,
+                transition: 'color 100ms, border-color 150ms',
+              }}
+            />
+          ) : (
+            <div
+              className="dm-mono"
+              style={{
+                fontSize: 40, fontWeight: 300, textAlign: 'center', paddingBottom: 8,
+                color: answerColor,
+                borderBottom: `2px solid ${inputBorderColor}`,
+                transition: 'color 100ms, border-color 150ms',
+                userSelect: 'none', minHeight: 56,
+              }}
+            >
+              {st.input || <span style={{ color: 'var(--md-sys-color-outline)' }}>_</span>}
+            </div>
           )}
 
+          {mode === 'learn' && (
+            <div className="md-label-medium" style={{
+              textAlign: 'center', marginTop: 8, minHeight: 20,
+              color: flash === 'correct' ? 'var(--md-custom-color-correct)' : flash === 'wrong' ? 'var(--md-sys-color-error)' : 'transparent',
+              transition: 'color 150ms', letterSpacing: '0.05em',
+            }}>
+              {flash === 'correct' ? '✓  correct' : flash === 'wrong' ? '✗  wrong' : '.'}
+            </div>
+          )}
         </div>
+
+        {desktop && (
+          <p className="md-label-small" style={{ color: 'var(--md-sys-color-outline)', letterSpacing: '0.06em' }}>
+            type · auto-submits on correct digit count
+          </p>
+        )}
       </div>
 
       {/* Mobile numpad */}
       {!desktop && <NumPad onKey={handleNumpadKey} />}
 
-      {/* Wrong-answer reveal (learn mode) */}
-      {st.status === 'reveal' && (
-        <div
-          className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center
-                     justify-center gap-5 cursor-pointer anim-fade-in"
-          style={{
-            top: 52,
-            background: 'var(--bg)',
-          }}
-          onClick={() => nextQRef.current()}
-        >
-          <span className="font-mono text-[10px] tracking-[0.26em] uppercase"
-                style={{ color: RED + 'cc' }}>
-            ✗  incorrect
-          </span>
-          <span className="font-mono text-[22px] text-[#282828]">
-            {question?.display}
-          </span>
-          <span
-            className="font-mono font-light leading-none tracking-tight anim-scale-in"
-            style={{ fontSize: 80, color: GREEN }}
+      {/* Wrong-answer reveal overlay (learn mode) — tap anywhere or auto 1.5s */}
+      <AnimatePresence>
+        {st.status === 'reveal' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={doSlideNext}
+            style={{
+              position: 'absolute', inset: 0, top: 52,
+              background: 'var(--md-sys-color-background)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20,
+              cursor: 'pointer', zIndex: 20,
+            }}
           >
-            {question?.answer}
-          </span>
-          <span className="font-mono text-[11px] text-[#1e1e1e] mt-6">
-            {desktop ? 'press space or enter to continue' : 'tap anywhere to continue'}
-          </span>
-        </div>
-      )}
+            <span className="md-label-large" style={{ color: 'var(--md-sys-color-error)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              ✗  incorrect
+            </span>
+            <span className="dm-mono" style={{ fontSize: 22, color: 'var(--md-sys-color-on-surface-variant)' }}>
+              {question?.display}
+            </span>
+            <span className="dm-mono" style={{ fontSize: 72, fontWeight: 300, lineHeight: 1, color: 'var(--md-custom-color-correct)' }}>
+              {question?.answer}
+            </span>
+            <span className="md-label-small" style={{ color: 'var(--md-sys-color-outline)', marginTop: 16, letterSpacing: '0.06em' }}>
+              {desktop ? 'press space or enter · or tap to continue' : 'tap anywhere to continue'}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
+      {/* M3 AlertDialog — exit confirm */}
+      <AnimatePresence>
+        {showExit && <ExitDialog onConfirm={onExit} onCancel={() => setShowExit(false)} />}
+      </AnimatePresence>
     </div>
   )
 }
