@@ -30,6 +30,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        cacheId: 'mathflow-v3',
         clientsClaim: true,
         // Pre-cache all build output (JS, CSS, HTML, images)
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
