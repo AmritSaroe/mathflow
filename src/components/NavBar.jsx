@@ -11,20 +11,6 @@ function HomeIcon({ active }) {
   )
 }
 
-function PracticeIcon({ active }) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <polygon
-        points="6,3 20,12 6,21"
-        fill={active ? 'currentColor' : 'none'}
-        stroke={active ? 'none' : 'currentColor'}
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
 function StatsIcon({ active }) {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -46,13 +32,12 @@ function StatsIcon({ active }) {
 }
 
 const TABS = [
-  { key: 'home',     label: 'Home',     Icon: HomeIcon },
-  { key: 'practice', label: 'Practice', Icon: PracticeIcon },
-  { key: 'stats',    label: 'Stats',    Icon: StatsIcon },
+  { key: 'home',  label: 'Home',  Icon: HomeIcon },
+  { key: 'stats', label: 'Stats', Icon: StatsIcon },
 ]
 
 /**
- * M3 Navigation Bar — 3 destinations, 80dp height.
+ * M3 Navigation Bar — 2 destinations, 80dp height.
  * Active indicator: pill shape behind icon (64×32dp), primary color.
  * Label always visible. Spring-animated sliding pill via Framer Motion layoutId.
  */

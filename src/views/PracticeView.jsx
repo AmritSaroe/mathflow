@@ -4,7 +4,7 @@ import { pickSRSItem, recordSRS } from '../engine/srs'
 import { recordActivity } from '../engine/storage'
 import NumPad from '../components/NumPad'
 
-/* ── Session reducer (logic unchanged) ────────────────── */
+/* ── Session reducer ───────────────────────────────────── */
 const INIT = {
   input: '', locked: false,
   correct: 0, attempted: 0, qNum: 0,
@@ -63,25 +63,15 @@ function ExitDialog({ onConfirm, onCancel }) {
           boxShadow: '0 6px 24px rgba(0,0,0,0.3)',
         }}
       >
-        <h3 className="md-headline-small" style={{ color: 'var(--md-sys-color-on-surface)', marginBottom: 16 }}>
-          Exit session?
-        </h3>
+        <h3 className="md-headline-small" style={{ color: 'var(--md-sys-color-on-surface)', marginBottom: 16 }}>Exit session?</h3>
         <p className="md-body-medium" style={{ color: 'var(--md-sys-color-on-surface-variant)', marginBottom: 24 }}>
           Progress in this session won't be saved.
         </p>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button
-            onClick={onCancel}
-            className="md-state"
-            style={{ padding: '10px 24px', borderRadius: 20, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--md-sys-color-primary)' }}
-          >
+          <button onClick={onCancel} className="md-state" style={{ padding: '10px 24px', borderRadius: 20, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--md-sys-color-primary)' }}>
             <span className="md-label-large">Cancel</span>
           </button>
-          <button
-            onClick={onConfirm}
-            className="md-state"
-            style={{ padding: '10px 24px', borderRadius: 20, border: 'none', background: 'var(--md-sys-color-error)', color: 'var(--md-sys-color-on-error)', cursor: 'pointer' }}
-          >
+          <button onClick={onConfirm} className="md-state" style={{ padding: '10px 24px', borderRadius: 20, border: 'none', background: 'var(--md-sys-color-error)', color: 'var(--md-sys-color-on-error)', cursor: 'pointer' }}>
             <span className="md-label-large">Exit</span>
           </button>
         </div>
@@ -93,12 +83,22 @@ function ExitDialog({ onConfirm, onCancel }) {
 /* ── PracticeView ──────────────────────────────────────── */
 export default function PracticeView({ session, onDone, onExit }) {
   const { topicId, topic, mode, timerMins } = session
+  const isDrill = mode === 'drill'
+
+  /* ── Drill queue state ───────────────────────────────── */
+  const [drillQueue, setDrillQueue] = useState(() => {
+    if (!isDrill || !topic.pool?.length) return []
+    const limit = session.drillLimit ?? topic.pool.length
+    return [...topic.pool].sort(() => Math.random() - 0.5).slice(0, limit)
+  })
+  const drillQueueRef = useRef(drillQueue)
+  drillQueueRef.current = drillQueue
 
   const [st, dispatch]        = useReducer(reducer, INIT)
   const [question, setQ]      = useState(null)
   const [srsItem, setSrsItem] = useState(null)
   const [timerSecs, setTimer] = useState(mode === 'practice' ? timerMins * 60 : null)
-  const [flash, setFlash]     = useState(null)   // 'correct' | 'wrong' | null
+  const [flash, setFlash]     = useState(null)
   const [shaking, setShaking] = useState(false)
   const [showExit, setShowExit] = useState(false)
 
@@ -110,8 +110,15 @@ export default function PracticeView({ session, onDone, onExit }) {
   const stRef     = useRef(st); stRef.current = st
   const qRef      = useRef(question); qRef.current = question
 
-  /* ── Question generation (logic unchanged) ─────────── */
+  /* ── Question generation ─────────────────────────────── */
   function genQ() {
+    if (isDrill) {
+      // Take first item from drill queue
+      const queue = drillQueueRef.current
+      if (!queue.length) return { q: null, it: null }
+      const it = queue[0]
+      return { q: topic.generate(it), it }
+    }
     if (topic.srs) {
       const it = pickSRSItem(topicId, topic.pool)
       return { q: topic.generate(it), it }
@@ -119,14 +126,18 @@ export default function PracticeView({ session, onDone, onExit }) {
     return { q: topic.generate(), it: null }
   }
 
-  /* ── Next question + M3 slide-in animation ──────────── */
+  /* ── Next question + slide-in animation ──────────────── */
   const nextQRef = useRef(null)
   nextQRef.current = function nextQuestion() {
     if (isDoneRef.current || stRef.current.status === 'done') return
     if (mode === 'learn' && stRef.current.qNum >= 20) {
       dispatch({ type: 'DONE' }); return
     }
+    if (isDrill && drillQueueRef.current.length === 0) {
+      isDoneRef.current = true; dispatch({ type: 'DONE' }); return
+    }
     const { q, it } = genQ()
+    if (!q) { isDoneRef.current = true; dispatch({ type: 'DONE' }); return }
     qControls.set({ x: '100vw', opacity: 0 })
     setQ(q); setSrsItem(it); setFlash(null)
     dispatch({ type: 'CONTINUE' })
@@ -136,10 +147,10 @@ export default function PracticeView({ session, onDone, onExit }) {
 
   const submitRef = useRef(null)
 
-  /* ── Init (logic unchanged) ─────────────────────────── */
+  /* ── Init ────────────────────────────────────────────── */
   useEffect(() => { nextQRef.current() }, []) // eslint-disable-line
 
-  /* ── Timer (logic unchanged) ─────────────────────────── */
+  /* ── Timer (practice mode only) ──────────────────────── */
   useEffect(() => {
     if (mode !== 'practice') return
     timerRef.current = setInterval(() => {
@@ -151,7 +162,7 @@ export default function PracticeView({ session, onDone, onExit }) {
     return () => clearInterval(timerRef.current)
   }, []) // eslint-disable-line
 
-  /* ── Done → record activity + notify parent ─────────── */
+  /* ── Done → record activity + notify parent ──────────── */
   useEffect(() => {
     if (st.status === 'done') {
       recordActivity(st.attempted, st.correct)
@@ -159,7 +170,7 @@ export default function PracticeView({ session, onDone, onExit }) {
     }
   }, [st.status]) // eslint-disable-line
 
-  /* ── Auto-advance reveal after 1.5s (learn mode) ────── */
+  /* ── Auto-advance reveal after 2s (learn + drill wrong) ─ */
   const doSlideNext = async () => {
     await qControls.start({ x: '-100vw', opacity: 0, transition: { ease: [0.3, 0, 1, 1], duration: 0.25 } })
     nextQRef.current()
@@ -167,7 +178,8 @@ export default function PracticeView({ session, onDone, onExit }) {
 
   useEffect(() => {
     if (st.status !== 'reveal') return
-    const t = setTimeout(doSlideNext, 1500)
+    const delay = isDrill ? 2000 : 1500
+    const t = setTimeout(doSlideNext, delay)
     return () => clearTimeout(t)
   }, [st.status]) // eslint-disable-line
 
@@ -183,7 +195,7 @@ export default function PracticeView({ session, onDone, onExit }) {
     return () => window.removeEventListener('keydown', h)
   }, [desktop]) // eslint-disable-line
 
-  /* ── Submit (logic unchanged + M3 animations) ────────── */
+  /* ── Submit ──────────────────────────────────────────── */
   function submit(inputVal) {
     const cur = stRef.current
     const val = inputVal ?? cur.input
@@ -192,18 +204,21 @@ export default function PracticeView({ session, onDone, onExit }) {
     const isCorrect = parseInt(val) === qRef.current.answer
 
     if (isCorrect) {
-      if (topic.srs && srsItem) recordSRS(topicId, srsItem, true)
+      if (topic.srs && srsItem && !isDrill) recordSRS(topicId, srsItem, true)
+      // Drill: remove first item from queue (it was correct)
+      if (isDrill) setDrillQueue(q => q.slice(1))
       dispatch({ type: 'CORRECT' })
       setFlash('correct')
-      // Correct: green flash → slide out left → new q slides in from right
       ;(async () => {
         await new Promise(r => setTimeout(r, mode === 'practice' ? 80 : 200))
         await qControls.start({ x: '-100vw', opacity: 0, transition: { ease: [0.3, 0, 1, 1], duration: 0.25 } })
         nextQRef.current()
       })()
     } else {
-      if (topic.srs && srsItem) recordSRS(topicId, srsItem, false)
-      dispatch({ type: 'WRONG', reveal: mode === 'learn' })
+      if (topic.srs && srsItem && !isDrill) recordSRS(topicId, srsItem, false)
+      // Drill: move first item to end of queue (re-queue)
+      if (isDrill) setDrillQueue(q => [...q.slice(1), q[0]])
+      dispatch({ type: 'WRONG', reveal: mode === 'learn' || isDrill })
       setFlash('wrong')
       setShaking(true)
       setTimeout(() => setShaking(false), 450)
@@ -213,12 +228,12 @@ export default function PracticeView({ session, onDone, onExit }) {
           nextQRef.current()
         }, 300)
       }
-      // learn: reveal overlay shown + auto-advances via useEffect
+      // learn/drill: reveal overlay shown + auto-advances via useEffect
     }
   }
   submitRef.current = submit
 
-  /* ── Desktop keyboard (logic unchanged) ─────────────── */
+  /* ── Desktop keyboard ────────────────────────────────── */
   function handleDesktopChange(e) {
     const cur = stRef.current
     if (cur.locked) { e.target.value = cur.input; return }
@@ -229,7 +244,7 @@ export default function PracticeView({ session, onDone, onExit }) {
     if (qRef.current && val.length === ansLen) setTimeout(() => submitRef.current(val), 80)
   }
 
-  /* ── Numpad (logic unchanged) ────────────────────────── */
+  /* ── Numpad ──────────────────────────────────────────── */
   function handleNumpadKey(key) {
     const cur = stRef.current
     if (cur.locked) return
@@ -265,14 +280,16 @@ export default function PracticeView({ session, onDone, onExit }) {
     : st.input ? 'var(--md-sys-color-primary)'
     : 'var(--md-sys-color-outline)'
 
+  const drillRemaining = isDrill ? drillQueueRef.current.length : 0
+
   return (
     <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: 'var(--md-sys-color-background)' }}>
 
-      {/* M3 Linear Progress Indicator */}
+      {/* Progress indicator */}
       {mode === 'learn' && <LinearProgress value={st.qNum / 20} />}
       {mode === 'practice' && timerMins && <LinearProgress value={timerSecs / (timerMins * 60)} />}
 
-      {/* Top bar — X close + counter */}
+      {/* Top bar */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px 4px 4px', minHeight: 52 }}>
         <button
           onClick={() => { if (st.attempted === 0) { onExit(); return }; setShowExit(true) }}
@@ -297,46 +314,56 @@ export default function PracticeView({ session, onDone, onExit }) {
               {Math.min(st.qNum + 1, 20)}<span style={{ color: 'var(--md-sys-color-outline)' }}> / 20</span>
             </span>
           )}
+          {isDrill && (
+            <span className="md-label-medium" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
+              {drillRemaining}<span style={{ color: 'var(--md-sys-color-outline)' }}> left</span>
+            </span>
+          )}
         </div>
       </div>
 
       {/* Arena */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '0 24px', gap: 20 }}>
 
-        {/* Correct / Attempted counters */}
+        {/* Counters */}
         <div style={{ display: 'flex', gap: 48, paddingBottom: 20, borderBottom: '1px solid var(--md-sys-color-outline-variant)', width: '100%', maxWidth: 480, justifyContent: 'center' }}>
-          {[{ val: st.correct, label: 'correct' }, { val: st.attempted, label: 'total' }].map(s => (
-            <div key={s.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <span key={s.val} className="dm-mono anim-score-in"
+          {isDrill ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <span key={st.attempted} className="dm-mono anim-score-in"
                     style={{ fontSize: 44, lineHeight: 1, fontWeight: 300, color: 'var(--md-sys-color-on-surface)' }}>
-                {s.val}
+                {st.attempted}
               </span>
-              <span className="md-label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                {s.label}
-              </span>
+              <span className="md-label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>rounds</span>
             </div>
-          ))}
+          ) : (
+            [{ val: st.correct, label: 'correct' }, { val: st.attempted, label: 'total' }].map(s => (
+              <div key={s.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <span key={s.val} className="dm-mono anim-score-in"
+                      style={{ fontSize: 44, lineHeight: 1, fontWeight: 300, color: 'var(--md-sys-color-on-surface)' }}>
+                  {s.val}
+                </span>
+                <span className="md-label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  {s.label}
+                </span>
+              </div>
+            ))
+          )}
         </div>
 
-        {/* Operation label — Label Small, muted */}
+        {/* Operation label */}
         <span className="md-label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', letterSpacing: '0.2em', textTransform: 'uppercase', minHeight: 16 }}>
           {question?.typeLabel ?? '\u00a0'}
         </span>
 
-        {/* Question — Display Large, DM Mono, Framer Motion animated */}
+        {/* Question */}
         <motion.div
           animate={qControls}
           className={`dm-mono${shaking ? ' anim-shake' : ''}`}
           style={{
             fontSize: 'clamp(44px, 12vw, 68px)',
-            lineHeight: 1,
-            letterSpacing: '-0.5px',
-            textAlign: 'center',
-            color: questionColor,
-            transition: 'color 100ms',
-            userSelect: 'none',
-            maxWidth: 480,
-            width: '100%',
+            lineHeight: 1, letterSpacing: '-0.5px', textAlign: 'center',
+            color: questionColor, transition: 'color 100ms',
+            userSelect: 'none', maxWidth: 480, width: '100%',
           }}
         >
           {question?.display ?? '—'}
@@ -376,7 +403,7 @@ export default function PracticeView({ session, onDone, onExit }) {
             </div>
           )}
 
-          {mode === 'learn' && (
+          {(mode === 'learn' || isDrill) && (
             <div className="md-label-medium" style={{
               textAlign: 'center', marginTop: 8, minHeight: 20,
               color: flash === 'correct' ? 'var(--md-custom-color-correct)' : flash === 'wrong' ? 'var(--md-sys-color-error)' : 'transparent',
@@ -397,7 +424,7 @@ export default function PracticeView({ session, onDone, onExit }) {
       {/* Mobile numpad */}
       {!desktop && <NumPad onKey={handleNumpadKey} />}
 
-      {/* Wrong-answer reveal overlay (learn mode) — tap anywhere or auto 1.5s */}
+      {/* Wrong-answer reveal overlay (learn + drill) */}
       <AnimatePresence>
         {st.status === 'reveal' && (
           <motion.div
@@ -422,14 +449,19 @@ export default function PracticeView({ session, onDone, onExit }) {
             <span className="dm-mono" style={{ fontSize: 72, fontWeight: 300, lineHeight: 1, color: 'var(--md-custom-color-correct)' }}>
               {question?.answer}
             </span>
-            <span className="md-label-small" style={{ color: 'var(--md-sys-color-outline)', marginTop: 16, letterSpacing: '0.06em' }}>
+            {isDrill && (
+              <span className="md-label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', marginTop: 4, letterSpacing: '0.04em' }}>
+                re-queued
+              </span>
+            )}
+            <span className="md-label-small" style={{ color: 'var(--md-sys-color-outline)', marginTop: 8, letterSpacing: '0.06em' }}>
               {desktop ? 'press space or enter · or tap to continue' : 'tap anywhere to continue'}
             </span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* M3 AlertDialog — exit confirm */}
+      {/* Exit dialog */}
       <AnimatePresence>
         {showExit && <ExitDialog onConfirm={onExit} onCancel={() => setShowExit(false)} />}
       </AnimatePresence>

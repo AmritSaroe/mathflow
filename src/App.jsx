@@ -5,8 +5,10 @@ import HomeView from './views/HomeView'
 import StatsView from './views/StatsView'
 import PracticeView from './views/PracticeView'
 import ResultView from './views/ResultView'
+import LearnView from './views/LearnView'
 import TopicDetailSheet from './views/TopicDetailSheet'
 import { initTheme, applyTheme } from './theme/material'
+import { TOPICS } from './data/topics'
 
 /* ── M3 screen transition variants ───────────────────── */
 const SCREEN = {
@@ -16,12 +18,13 @@ const SCREEN = {
 }
 
 export default function App() {
-  const [tab, setTab]             = useState('home')  // 'home' | 'stats'
+  const [tab, setTab]             = useState('home')
   const [theme, setTheme]         = useState(() => initTheme())
-  const [selectedTopic, setTopic] = useState(null)   // opens TopicDetailSheet
-  const [session, setSession]     = useState(null)   // active session config
+  const [selectedTopic, setTopic] = useState(null)
+  const [session, setSession]     = useState(null)
   const [sessionId, setSessionId] = useState(0)
-  const [result, setResult]       = useState(null)   // completed session result
+  const [result, setResult]       = useState(null)
+  const [lastTopicId, setLastTopicId] = useState(() => localStorage.getItem('mf-lastTopicId'))
 
   /* ── Theme toggle ──────────────────────────────────── */
   function toggleTheme() {
@@ -36,6 +39,8 @@ export default function App() {
     setSession(config)
     setSessionId(id => id + 1)
     setTopic(null)
+    localStorage.setItem('mf-lastTopicId', config.topicId)
+    setLastTopicId(config.topicId)
   }
 
   function handleSessionDone(stats) {
@@ -57,14 +62,18 @@ export default function App() {
     setTab('home')
   }
 
-  function handleTabChange(key) {
-    // Practice tab redirects to Home (topic selection is done from Home)
-    setTab(key === 'practice' ? 'home' : key)
+  /* ── FAB: continue last topic ──────────────────────── */
+  function openLastTopic() {
+    const topic = lastTopicId && TOPICS[lastTopicId]
+    if (topic) setTopic({ id: lastTopicId, ...topic })
   }
 
   const inPractice = session != null
   const inResult   = result != null
   const showNav    = !inPractice && !inResult
+
+  /* ── Learn mode for add_2d2d uses step-by-step LearnView ── */
+  const isLearnView = inPractice && session.mode === 'learn' && session.topicId === 'add_2d2d'
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -92,9 +101,29 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Practice session — full-screen overlay, zero chrome */}
+        {/* Step-by-step learn view (add_2d2d only) */}
         <AnimatePresence>
-          {inPractice && (
+          {isLearnView && (
+            <motion.div
+              key={`learn-${sessionId}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: 0.2 } }}
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              style={{ position: 'absolute', inset: 0, zIndex: 50 }}
+            >
+              <LearnView
+                key={sessionId}
+                session={session}
+                onExit={handleHome}
+                onStartPractice={() => startSession({ ...session, mode: 'practice', timerMins: 5 })}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Practice / drill session — full-screen overlay */}
+        <AnimatePresence>
+          {inPractice && !isLearnView && (
             <motion.div
               key={`practice-${sessionId}`}
               initial={{ opacity: 0 }}
@@ -139,8 +168,44 @@ export default function App() {
             animate={{ y: 0, transition: { ease: [0.2, 0, 0, 1], duration: 0.3 } }}
             exit={{ y: 80, transition: { ease: [0.3, 0, 1, 1], duration: 0.2 } }}
           >
-            <NavBar active={tab} onChange={handleTabChange} />
+            <NavBar active={tab} onChange={setTab} />
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── FAB: Continue → (last used topic) ── */}
+      <AnimatePresence>
+        {showNav && lastTopicId && TOPICS[lastTopicId] && (
+          <motion.button
+            key="fab"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1, transition: { ease: [0.2, 0, 0, 1], duration: 0.25, delay: 0.1 } }}
+            exit={{ scale: 0, opacity: 0, transition: { duration: 0.15 } }}
+            onClick={openLastTopic}
+            className="md-state"
+            style={{
+              position: 'fixed',
+              bottom: 96,
+              right: 16,
+              zIndex: 40,
+              height: 56,
+              borderRadius: 16,
+              padding: '0 20px 0 16px',
+              background: 'var(--md-sys-color-primary-container)',
+              color: 'var(--md-sys-color-on-primary-container)',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 3px 12px rgba(0,0,0,0.25)',
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <polygon points="4,2 16,9 4,16" fill="currentColor"/>
+            </svg>
+            <span className="md-label-large" style={{ color: 'inherit' }}>Continue</span>
+          </motion.button>
         )}
       </AnimatePresence>
 

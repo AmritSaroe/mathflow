@@ -45,6 +45,14 @@ export function getDueCount(topicId, pool) {
   }).length
 }
 
+/* Returns true if any item in the pool has been attempted at least once.
+   `due > 0` means the scheduler has recorded a result for that card. */
+export function hasAnyAttempts(topicId, pool) {
+  if (!pool?.length) return false
+  const d = load()
+  return pool.some(item => (d[key(topicId, item)]?.due ?? 0) > 0)
+}
+
 export function getMasteryPercent(topicId, pool) {
   if (!pool?.length) return 0
   const d = load()

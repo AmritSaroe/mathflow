@@ -56,6 +56,10 @@ export function generateMul2D2D() {
   const a = rand(12, 49), b = rand(12, 49), ans = a * b
   return { display: `${a} × ${b}`, answer: ans, typeLabel: 'multiplication', maxDigits: digits(ans) }
 }
+export function generateMul1D3D() {
+  const od = rand(2, 9), td = rand(112, 899), fwd = rand(0, 1) === 0, ans = od * td
+  return { display: fwd ? `${td} × ${od}` : `${od} × ${td}`, answer: ans, typeLabel: 'multiplication', maxDigits: digits(ans) }
+}
 
 export function generateTables({ t, b }) {
   const ans = t * b

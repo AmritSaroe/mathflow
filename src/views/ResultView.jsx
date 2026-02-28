@@ -44,6 +44,7 @@ function StatCard({ label, value, sub, color, delay }) {
 export default function ResultView({ result, onAgain, onHome }) {
   const { correct, attempted, session } = result
   const { topic, mode, timerMins } = session
+  const isDrill = mode === 'drill'
 
   const pct = attempted > 0 ? Math.round(correct / attempted * 100) : 0
 
@@ -52,6 +53,45 @@ export default function ResultView({ result, onAgain, onHome }) {
     : pct >= 50
     ? 'var(--md-sys-color-tertiary)'
     : 'var(--md-sys-color-error)'
+
+  if (isDrill) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'var(--md-sys-color-background)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 40px', overflowY: 'auto' }}>
+        <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
+            className="md-label-medium"
+            style={{ color: 'var(--md-sys-color-on-surface-variant)', letterSpacing: '0.15em', textTransform: 'uppercase', textAlign: 'center' }}>
+            drill complete
+          </motion.p>
+
+          <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ ease: [0.2, 0, 0, 1], duration: 0.5, delay: 0.05 }}
+            style={{ textAlign: 'center' }}>
+            <span className="dm-mono" style={{ fontSize: 96, fontWeight: 300, lineHeight: 1, color: 'var(--md-custom-color-correct)' }}>
+              {attempted}
+            </span>
+          </motion.div>
+
+          <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ ease: [0.2, 0, 0, 1], duration: 0.35, delay: 0.15 }}
+            className="md-title-medium"
+            style={{ color: 'var(--md-sys-color-on-surface-variant)', textAlign: 'center' }}>
+            rounds to clear {topic.name}
+          </motion.p>
+
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ ease: [0.2, 0, 0, 1], duration: 0.4, delay: 0.3 }}
+            style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+            <button onClick={onHome} className="md-state"
+              style={{ flex: 1, height: 40, borderRadius: 20, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--md-sys-color-primary)' }}>
+              <span className="md-label-large">← Home</span>
+            </button>
+            <button onClick={onAgain} className="md-state"
+              style={{ flex: 2, height: 40, borderRadius: 20, border: 'none', background: 'var(--md-sys-color-primary)', color: 'var(--md-sys-color-on-primary)', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+              <span className="md-label-large">Drill again →</span>
+            </button>
+          </motion.div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div

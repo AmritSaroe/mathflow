@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { SECTIONS, SECTION_TOPICS } from '../data/topics'
-import { getDueCount, getMasteryPercent } from '../engine/srs'
+import { getDueCount, getMasteryPercent, hasAnyAttempts } from '../engine/srs'
 import { getActivity } from '../engine/storage'
 
 /* ── Helpers ─────────────────────────────────────────── */
@@ -87,7 +87,8 @@ function WeeklyChart({ activity }) {
 
 /* ── Topic mastery card ──────────────────────────────── */
 function TopicMasteryCard({ topic, delay }) {
-  const mastery = topic.srs ? getMasteryPercent(topic.id, topic.pool) : null
+  const started = topic.srs ? hasAnyAttempts(topic.id, topic.pool) : false
+  const mastery = topic.srs && started ? getMasteryPercent(topic.id, topic.pool) : null
   const due = topic.srs ? getDueCount(topic.id, topic.pool) : 0
 
   const masteryColor = mastery == null ? 'var(--md-sys-color-on-surface-variant)'
@@ -151,8 +152,8 @@ function TopicMasteryCard({ topic, delay }) {
           {due}
         </span>
       )}
-      {mastery == null && (
-        <span className="md-label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', flexShrink: 0 }}>N/A</span>
+      {mastery == null && !due && (
+        <span className="md-label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', flexShrink: 0 }}>Not started</span>
       )}
     </motion.div>
   )
@@ -224,7 +225,7 @@ export default function StatsView() {
           animate={{ opacity: 1 }}
           transition={{ ease: [0.2, 0, 0, 1], duration: 0.35, delay: 0.1 }}
         >
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 4, WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <FilterChip label="All" selected={filterSection == null} onClick={() => setFilterSection(null)} />
             {SECTIONS.map(sec => (
               <FilterChip key={sec.key} label={sec.label} selected={filterSection === sec.key} onClick={() => setFilterSection(s => s === sec.key ? null : sec.key)} />
