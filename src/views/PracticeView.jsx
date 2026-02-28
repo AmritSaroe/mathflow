@@ -126,7 +126,7 @@ export default function PracticeView({ session, onDone, onExit }) {
     return { q: topic.generate(), it: null }
   }
 
-  /* ── Next question + slide-in animation ──────────────── */
+  /* ── Next question + fade-in animation ───────────────── */
   const nextQRef = useRef(null)
   nextQRef.current = function nextQuestion() {
     if (isDoneRef.current || stRef.current.status === 'done') return
@@ -138,10 +138,10 @@ export default function PracticeView({ session, onDone, onExit }) {
     }
     const { q, it } = genQ()
     if (!q) { isDoneRef.current = true; dispatch({ type: 'DONE' }); return }
-    qControls.set({ x: '100vw', opacity: 0 })
+    qControls.set({ opacity: 0, scale: 0.94 })
     setQ(q); setSrsItem(it); setFlash(null)
     dispatch({ type: 'CONTINUE' })
-    qControls.start({ x: 0, opacity: 1, transition: { ease: [0, 0, 0, 1], duration: 0.3 } })
+    qControls.start({ opacity: 1, scale: 1, transition: { ease: [0.2, 0, 0, 1], duration: 0.22 } })
     if (desktop) setTimeout(() => inputRef.current?.focus(), 80)
   }
 
@@ -171,15 +171,15 @@ export default function PracticeView({ session, onDone, onExit }) {
   }, [st.status]) // eslint-disable-line
 
   /* ── Auto-advance reveal after 2s (learn + drill wrong) ─ */
-  const doSlideNext = async () => {
-    await qControls.start({ x: '-100vw', opacity: 0, transition: { ease: [0.3, 0, 1, 1], duration: 0.25 } })
+  const doNext = async () => {
+    await qControls.start({ opacity: 0, scale: 0.96, transition: { ease: [0.4, 0, 1, 1], duration: 0.15 } })
     nextQRef.current()
   }
 
   useEffect(() => {
     if (st.status !== 'reveal') return
     const delay = isDrill ? 2000 : 1500
-    const t = setTimeout(doSlideNext, delay)
+    const t = setTimeout(doNext, delay)
     return () => clearTimeout(t)
   }, [st.status]) // eslint-disable-line
 
@@ -188,7 +188,7 @@ export default function PracticeView({ session, onDone, onExit }) {
     if (!desktop) return
     const h = (e) => {
       if (stRef.current.status === 'reveal' && (e.key === ' ' || e.key === 'Enter')) {
-        e.preventDefault(); doSlideNext()
+        e.preventDefault(); doNext()
       }
     }
     window.addEventListener('keydown', h)
@@ -211,7 +211,7 @@ export default function PracticeView({ session, onDone, onExit }) {
       setFlash('correct')
       ;(async () => {
         await new Promise(r => setTimeout(r, mode === 'practice' ? 80 : 200))
-        await qControls.start({ x: '-100vw', opacity: 0, transition: { ease: [0.3, 0, 1, 1], duration: 0.25 } })
+        await qControls.start({ opacity: 0, scale: 0.96, transition: { ease: [0.4, 0, 1, 1], duration: 0.15 } })
         nextQRef.current()
       })()
     } else {
@@ -224,7 +224,7 @@ export default function PracticeView({ session, onDone, onExit }) {
       setTimeout(() => setShaking(false), 450)
       if (mode === 'practice') {
         setTimeout(async () => {
-          await qControls.start({ x: '-100vw', opacity: 0, transition: { ease: [0.3, 0, 1, 1], duration: 0.25 } })
+          await qControls.start({ opacity: 0, scale: 0.96, transition: { ease: [0.4, 0, 1, 1], duration: 0.15 } })
           nextQRef.current()
         }, 300)
       }
@@ -432,7 +432,7 @@ export default function PracticeView({ session, onDone, onExit }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            onClick={doSlideNext}
+            onClick={doNext}
             style={{
               position: 'absolute', inset: 0, top: 52,
               background: 'var(--md-sys-color-background)',

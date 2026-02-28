@@ -23,8 +23,12 @@ function newExample() {
   return { a, b, steps: makeAdd2D2DSteps(a, b) }
 }
 
-/* ── Step display with slide-in animation ─────────────── */
+/* ── Step display with fade-in animation ──────────────── */
 function StepCard({ step, idx, total }) {
+  const len = step.display.length
+  const fontSize = len <= 8  ? 'clamp(32px, 9vw, 52px)'
+                 : len <= 17 ? 'clamp(24px, 6.5vw, 42px)'
+                 :             'clamp(18px, 5vw, 32px)'
   return (
     <motion.div
       key={idx}
@@ -39,12 +43,11 @@ function StepCard({ step, idx, total }) {
       <div
         className="dm-mono"
         style={{
-          fontSize: 'clamp(32px, 9vw, 52px)',
+          fontSize,
           fontWeight: 300,
           lineHeight: 1.2,
           color: idx === total - 1 ? 'var(--md-custom-color-correct)' : 'var(--md-sys-color-on-surface)',
           letterSpacing: '-0.5px',
-          wordBreak: 'break-word',
         }}
       >
         {step.display}
