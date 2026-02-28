@@ -76,6 +76,9 @@ input[type=number] { -moz-appearance: textfield; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--md-sys-color-outline-variant); border-radius: 2px; }
 
+/* Hide scrollbar on horizontally-scrollable chip rows */
+.chips-scroll::-webkit-scrollbar { display: none; }
+
 /* ── Keyframes ─────────────────────────────────────── */
 @keyframes md-shake {
   0%,100% { transform: translateX(0); }

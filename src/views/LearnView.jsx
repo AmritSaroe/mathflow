@@ -10,7 +10,7 @@ function makeAdd2D2DSteps(a, b) {
   const onesSum = aO + bO
   const answer  = a + b
   return [
-    { label: 'Question',    display: `${a} + ${b}` },
+    { label: 'Show',        display: `${a} + ${b}` },
     { label: 'Expand',      display: `${aT} + ${aO} + ${bT} + ${bO}` },
     { label: 'Reorganise',  display: `(${aT} + ${bT}) + (${aO} + ${bO})` },
     { label: 'Solve',       display: `${tensSum} + ${onesSum}` },
@@ -133,35 +133,50 @@ export default function LearnView({ session, onExit, onStartPractice }) {
 
       {/* Bottom action area */}
       <div style={{ flexShrink: 0, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* Next step / Next example button */}
-        <button
-          onClick={nextStep}
-          className="md-state"
-          style={{
-            width: '100%', height: 56, borderRadius: 16, border: 'none',
-            background: 'var(--md-sys-color-primary)',
-            color: 'var(--md-sys-color-on-primary)',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            boxShadow: '0 3px 8px rgba(0,0,0,0.2)',
-          }}
-        >
-          <span className="md-label-large" style={{ color: 'inherit' }}>
-            {isLast ? 'Next example' : 'Next →'}
-          </span>
-        </button>
-
-        {/* Start Practice — always visible */}
-        <button
-          onClick={onStartPractice}
-          className="md-state"
-          style={{
-            width: '100%', height: 44, borderRadius: 16, border: '1px solid var(--md-sys-color-outline)',
-            background: 'none', color: 'var(--md-sys-color-primary)',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <span className="md-label-large">Start Practice (5 min) →</span>
-        </button>
+        {!isLast ? (
+          /* Mid-lesson: single Next button */
+          <button
+            onClick={nextStep}
+            className="md-state"
+            style={{
+              width: '100%', height: 56, borderRadius: 16, border: 'none',
+              background: 'var(--md-sys-color-primary)',
+              color: 'var(--md-sys-color-on-primary)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 3px 8px rgba(0,0,0,0.2)',
+            }}
+          >
+            <span className="md-label-large" style={{ color: 'inherit' }}>Next →</span>
+          </button>
+        ) : (
+          /* End of lesson: Start Practice is primary, Another example is secondary */
+          <>
+            <button
+              onClick={onStartPractice}
+              className="md-state"
+              style={{
+                width: '100%', height: 56, borderRadius: 16, border: 'none',
+                background: 'var(--md-sys-color-primary)',
+                color: 'var(--md-sys-color-on-primary)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                boxShadow: '0 3px 8px rgba(0,0,0,0.2)',
+              }}
+            >
+              <span className="md-label-large" style={{ color: 'inherit' }}>Start Practice →</span>
+            </button>
+            <button
+              onClick={nextStep}
+              className="md-state"
+              style={{
+                width: '100%', height: 44, borderRadius: 16, border: 'none',
+                background: 'none', color: 'var(--md-sys-color-primary)',
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <span className="md-label-large">Another example</span>
+            </button>
+          </>
+        )}
       </div>
     </div>
   )
