@@ -30,7 +30,6 @@ export default defineConfig({
         ],
       },
       workbox: {
-        skipWaiting: true,
         clientsClaim: true,
         // Pre-cache all build output (JS, CSS, HTML, images)
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
