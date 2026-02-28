@@ -1,19 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!-- Theme tokens — inline so they're available before any paint -->
+    <!-- Apply dark theme immediately to prevent flash — M3 vars are set by JS in main.jsx,
+         but we pre-set a dark background so the flash is invisible -->
     <style>
-      :root{--bg:#1a1a1a;--surface:#242424;--surface2:#2e2e2e;--border:#3a3a3a;--border-hi:#4e4e4e;--text:#f0f0f0;--muted:#888;--muted2:#555}
-      html.light{--bg:#f4f4ef;--surface:#ffffff;--surface2:#e8e8e3;--border:#d4d4ce;--border-hi:#b0b0aa;--text:#1a1a1a;--muted:#666;--muted2:#999}
+      html { background: #1c1b1e; }
     </style>
-    <!-- Restore saved theme class before any render to prevent flash -->
-    <script>(function(){var t=localStorage.getItem('mf-theme');if(t==='light')document.documentElement.classList.add('light')})()</script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>MathFlow</title>
+    <!-- Google Fonts: Roboto (UI) + DM Mono (math numerals) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400&display=swap" rel="stylesheet" />
     <script type="module" src="/src/main.jsx"></script>
   </head>
   <body>
