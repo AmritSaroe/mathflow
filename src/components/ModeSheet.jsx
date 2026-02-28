@@ -42,9 +42,9 @@ export default function ModeSheet({ topic, sectionColor, onStart, onClose }) {
 
       {/* Sheet */}
       <div
-        className="relative w-full sm:w-[360px] bg-[#0c0c0c] border border-[#1e1e1e]
-                   rounded-t-[24px] sm:rounded-[22px] px-6 pt-5 pb-8 sm:pb-6
-                   anim-slide-up sm:anim-scale-in"
+        className="relative w-full sm:w-[360px] rounded-t-[24px] sm:rounded-[22px]
+                   px-6 pt-5 pb-8 sm:pb-6 border anim-slide-up sm:anim-scale-in"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
         {/* Handle pill (mobile only) */}
         <div className="mx-auto w-10 h-1 rounded-full bg-[#242424] mb-5 sm:hidden" />
@@ -80,9 +80,9 @@ export default function ModeSheet({ topic, sectionColor, onStart, onClose }) {
                            active:scale-[0.97]"
                 style={
                   active
-                    ? { background: '#141414', borderColor: accent + '55',
+                    ? { background: 'var(--surface2)', borderColor: accent + '55',
                         boxShadow: `0 0 0 1px ${accent}18, inset 0 0 0 1px ${accent}10` }
-                    : { background: '#090909', borderColor: '#181818' }
+                    : { background: 'var(--bg)', borderColor: 'var(--border)' }
                 }
               >
                 <div
@@ -111,8 +111,8 @@ export default function ModeSheet({ topic, sectionColor, onStart, onClose }) {
                              transition-all duration-150 active:scale-[0.96]"
                   style={
                     sel
-                      ? { background: '#141414', borderColor: accent + '55', color: accent }
-                      : { background: '#090909', borderColor: '#181818', color: '#303030' }
+                      ? { background: 'var(--surface2)', borderColor: accent + '55', color: accent }
+                      : { background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--muted2)' }
                   }
                 >
                   {m} min

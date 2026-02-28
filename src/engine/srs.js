@@ -36,6 +36,15 @@ export function recordSRS(topicId, item, correct) {
   save(d)
 }
 
+export function getDueCount(topicId, pool) {
+  if (!pool?.length) return 0
+  const d = load(), now = Date.now()
+  return pool.filter(item => {
+    const c = card(d, key(topicId, item))
+    return c.reps > 0 && now >= c.due
+  }).length
+}
+
 export function getMasteryPercent(topicId, pool) {
   if (!pool?.length) return 0
   const d = load()

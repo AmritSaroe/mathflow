@@ -73,6 +73,9 @@ export default defineConfig({
     }),
   ],
   build: {
+    // Use src/index.html as the stable entry so root index.html stays as
+    // the deployed output and never gets treated as a stale build artifact
+    rollupOptions: { input: './src/index.html' },
     outDir: 'dist',
     emptyOutDir: true,
   },

@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme tokens ───────────────────────────────────── */
+:root {
+  --bg:           #1a1a1a;
+  --surface:      #242424;
+  --surface2:     #2e2e2e;
+  --border:       #3a3a3a;
+  --border-hi:    #4e4e4e;
+  --text:         #f0f0f0;
+  --muted:        #888;
+  --muted2:       #555;
+}
+
+html.light {
+  --bg:           #f4f4ef;
+  --surface:      #ffffff;
+  --surface2:     #e8e8e3;
+  --border:       #d4d4ce;
+  --border-hi:    #b0b0aa;
+  --text:         #1a1a1a;
+  --muted:        #666;
+  --muted2:       #999;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body, #root {
@@ -11,8 +34,8 @@ html, body, #root {
 }
 
 body {
-  background: #080808;
-  color: #f0f0ee;
+  background: var(--bg);
+  color: var(--text);
   font-family: 'Space Grotesk', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }

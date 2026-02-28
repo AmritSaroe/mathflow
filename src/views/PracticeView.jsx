@@ -40,10 +40,11 @@ export default function PracticeView({ session, onExit, onAgain }) {
   const [flash, setFlash]    = useState(null)   // 'correct' | 'wrong' | null
   const [feedKey, setFeedKey] = useState(0)     // increments per submit → retriggers CSS anim
 
-  const desktop   = isDesktop()
-  const inputRef  = useRef(null)
-  const timerRef  = useRef(null)
-  const stRef     = useRef(st); stRef.current = st
+  const desktop    = isDesktop()
+  const inputRef   = useRef(null)
+  const timerRef   = useRef(null)
+  const isDoneRef  = useRef(false)          // sync flag — set before React batches DONE
+  const stRef      = useRef(st); stRef.current = st
   const qRef      = useRef(question); qRef.current = question
   const qDisplayRef = useRef(null)
 
@@ -57,6 +58,7 @@ export default function PracticeView({ session, onExit, onAgain }) {
   }
 
   function nextQuestion() {
+    if (isDoneRef.current || stRef.current.status === 'done') return
     if (mode === 'learn' && stRef.current.qNum >= 20) {
       dispatch({ type: 'DONE' }); return
     }
@@ -76,7 +78,7 @@ export default function PracticeView({ session, onExit, onAgain }) {
     if (mode !== 'practice') return
     timerRef.current = setInterval(() => {
       setTimer(s => {
-        if (s <= 1) { clearInterval(timerRef.current); dispatch({ type: 'DONE' }); return 0 }
+        if (s <= 1) { clearInterval(timerRef.current); isDoneRef.current = true; dispatch({ type: 'DONE' }); return 0 }
         return s - 1
       })
     }, 1000)
@@ -91,7 +93,7 @@ export default function PracticeView({ session, onExit, onAgain }) {
   function submit(inputVal) {
     const cur = stRef.current
     const val = inputVal ?? cur.input
-    if (cur.locked || !val || !qRef.current) return
+    if (isDoneRef.current || cur.locked || !val || !qRef.current) return
 
     const isCorrect = parseInt(val) === qRef.current.answer
 
@@ -163,7 +165,8 @@ export default function PracticeView({ session, onExit, onAgain }) {
     const pctColor = pct >= 80 ? GREEN : pct >= 50 ? '#e8c84a' : RED
 
     return (
-      <div className="fixed inset-0 bg-[#080808] flex flex-col items-center justify-center gap-6 px-6">
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-6 px-6"
+           style={{ background: 'var(--bg)' }}>
 
         <p className="font-mono text-[10px] text-[#282828] tracking-[0.28em] uppercase anim-fade-up">
           session complete
@@ -230,13 +233,12 @@ export default function PracticeView({ session, onExit, onAgain }) {
 
   /* ── Practice screen ─────────────────────────────── */
   return (
-    <div className="fixed inset-0 bg-[#080808] flex flex-col text-[#f0f0ee]">
+    <div className="fixed inset-0 flex flex-col" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
 
       {/* ── Header ── */}
       <header
-        className="flex-shrink-0 flex items-center justify-between px-5
-                   border-b border-[#111] bg-[#080808]"
-        style={{ height: 52 }}
+        className="flex-shrink-0 flex items-center justify-between px-5 border-b"
+        style={{ borderColor: 'var(--border)', background: 'var(--bg)', height: 52 }}
       >
         <span className="font-mono text-[11px] tracking-[0.14em] uppercase"
               style={{ color: ACCENT + 'cc' }}>
@@ -395,7 +397,7 @@ export default function PracticeView({ session, onExit, onAgain }) {
                      justify-center gap-5 cursor-pointer anim-fade-in"
           style={{
             top: 52,
-            background: '#080808',
+            background: 'var(--bg)',
           }}
           onClick={() => nextQRef.current()}
         >

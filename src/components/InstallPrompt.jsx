@@ -51,9 +51,8 @@ export default function InstallPrompt() {
       style={{ animation: 'slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1) both' }}
     >
       <div
-        className="w-full max-w-md mx-auto rounded-[18px] border border-[#222]
-                   bg-[#0f0f0f] px-4 py-3 flex items-center gap-3"
-        style={{ boxShadow: '0 8px 40px rgba(0,0,0,0.7)' }}
+        className="w-full max-w-md mx-auto rounded-[18px] border px-4 py-3 flex items-center gap-3"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }}
       >
         {/* Icon */}
         <div
@@ -68,10 +67,10 @@ export default function InstallPrompt() {
 
         {/* Text */}
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-semibold text-[#f0f0ee] leading-tight">
+          <p className="text-[13px] font-semibold leading-tight" style={{ color: 'var(--text)' }}>
             Install MathFlow
           </p>
-          <p className="text-[11px] text-[#444] mt-0.5 font-mono">
+          <p className="text-[11px] mt-0.5 font-mono" style={{ color: 'var(--muted2)' }}>
             works offline · no app store needed
           </p>
         </div>
@@ -80,8 +79,8 @@ export default function InstallPrompt() {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={dismiss}
-            className="px-3 py-1.5 rounded-[8px] text-[12px] font-semibold text-[#444]
-                       hover:text-[#888] hover:bg-[#1a1a1a] transition-all"
+            className="px-3 py-1.5 rounded-[8px] text-[12px] font-semibold transition-all"
+            style={{ color: 'var(--muted)', background: 'transparent' }}
           >
             Later
           </button>
