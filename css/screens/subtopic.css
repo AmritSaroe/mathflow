@@ -1,0 +1,48 @@
+/* ═══════════════════════════════════════════════════════
+   SUBTOPIC SCREEN
+═══════════════════════════════════════════════════════ */
+
+#subtopicScreen { padding-bottom: 40px; }
+
+.subtopic-card {
+  margin: 0 14px 7px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 14px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.12s, transform 0.08s;
+}
+
+.subtopic-card:active { transform: scale(0.98); background: var(--surface2); }
+
+@media (pointer: fine) {
+  .subtopic-card:hover  { background: var(--surface2); border-color: var(--accent); transform: translateY(-1px); }
+  .subtopic-card:active { transform: scale(0.98) translateY(0); }
+}
+
+.subtopic-left  { flex: 1; }
+
+.subtopic-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.subtopic-desc {
+  font-size: 11px;
+  color: var(--muted2);
+  font-family: 'DM Mono', monospace;
+  margin-top: 2px;
+}
+
+.subtopic-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.subtopic-arrow { color: var(--muted); font-size: 16px; }
