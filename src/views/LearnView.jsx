@@ -1,20 +1,19 @@
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useRef, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { rand } from '../engine/generators'
 
-/* ── Generate step-by-step worked example for 2D+2D ─── */
+/* ── Step data ────────────────────────────────────────── */
 function makeAdd2D2DSteps(a, b) {
   const aT = Math.floor(a / 10) * 10, aO = a % 10
   const bT = Math.floor(b / 10) * 10, bO = b % 10
   const tensSum = aT + bT
   const onesSum = aO + bO
-  const answer  = a + b
   return [
-    { label: 'Show',        display: `${a} + ${b}` },
-    { label: 'Expand',      display: `${aT} + ${aO} + ${bT} + ${bO}` },
-    { label: 'Reorganise',  display: `(${aT} + ${bT}) + (${aO} + ${bO})` },
-    { label: 'Solve',       display: `${tensSum} + ${onesSum}` },
-    { label: 'Answer',      display: `${answer}` },
+    { label: 'Question',   type: 'simple',     display: `${a} + ${b}` },
+    { label: 'Expand',     type: 'simple',     display: `${aT} + ${aO} + ${bT} + ${bO}` },
+    { label: 'Reorganise', type: 'reorganise', tensA: aT, tensB: bT, unitsA: aO, unitsB: bO },
+    { label: 'Solve',      type: 'solve',      tens: tensSum, units: onesSum },
+    { label: 'Answer',     type: 'answer',     display: `${a + b}` },
   ]
 }
 
@@ -23,73 +22,128 @@ function newExample() {
   return { a, b, steps: makeAdd2D2DSteps(a, b) }
 }
 
-/* ── Step display with fade-in animation ──────────────── */
-function StepCard({ step, idx, total }) {
-  const len = step.display.length
-  const fontSize = len <= 8  ? 'clamp(32px, 9vw, 52px)'
-                 : len <= 17 ? 'clamp(24px, 6.5vw, 42px)'
-                 :             'clamp(18px, 5vw, 32px)'
+/* ── Math text ────────────────────────────────────────── */
+function MathText({ children, size = 'large', color }) {
+  const fontSize = size === 'large'  ? 'clamp(28px, 8vw, 44px)'
+                 : size === 'medium' ? 'clamp(20px, 5.5vw, 32px)'
+                 :                    'clamp(14px, 4vw, 20px)'
   return (
-    <motion.div
-      key={idx}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ ease: [0.2, 0, 0, 1], duration: 0.3 }}
-      style={{ textAlign: 'center' }}
+    <div
+      className="dm-mono"
+      style={{
+        fontSize,
+        fontWeight: 300,
+        lineHeight: 1.3,
+        color: color || 'var(--md-sys-color-on-surface)',
+        letterSpacing: '-0.5px',
+        textAlign: 'center',
+        whiteSpace: 'nowrap',
+      }}
     >
-      <div className="md-label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 16 }}>
-        Step {idx + 1} of {total} — {step.label}
-      </div>
-      <div
-        className="dm-mono"
-        style={{
-          fontSize,
-          fontWeight: 300,
-          lineHeight: 1.2,
-          color: idx === total - 1 ? 'var(--md-custom-color-correct)' : 'var(--md-sys-color-on-surface)',
-          letterSpacing: '-0.5px',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {step.display}
-      </div>
-    </motion.div>
+      {children}
+    </div>
   )
 }
 
-/* ── Previous steps (dimmed, stacked above) ───────────── */
-function PrevSteps({ steps, currentIdx }) {
-  const prev = steps.slice(0, currentIdx)
-  if (!prev.length) return null
+/* ── Step content variants ────────────────────────────── */
+function SimpleContent({ step }) {
+  const len = step.display.length
+  const size = len <= 7 ? 'large' : 'medium'
+  return <MathText size={size}>{step.display}</MathText>
+}
+
+function ReorganiseContent({ step }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32, width: '100%', maxWidth: 420 }}>
-      {prev.map((s, i) => (
-        <div key={i} style={{ textAlign: 'center', opacity: 0.3 + (i / prev.length) * 0.25 }}>
-          <div className="md-label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 4, fontSize: 10 }}>
-            {s.label}
-          </div>
-          <div className="dm-mono" style={{ fontSize: 'clamp(18px, 5vw, 28px)', fontWeight: 300, color: 'var(--md-sys-color-on-surface)', letterSpacing: '-0.5px' }}>
-            {s.display}
-          </div>
-        </div>
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <MathText size="medium">({step.tensA} + {step.tensB})</MathText>
+      <MathText size="small">+</MathText>
+      <MathText size="medium">({step.unitsA} + {step.unitsB})</MathText>
     </div>
+  )
+}
+
+function SolveContent({ step }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <MathText size="large">{step.tens}</MathText>
+      <MathText size="small">+</MathText>
+      <MathText size="large">{step.units}</MathText>
+      <div style={{ width: 64, height: 2, background: 'var(--md-sys-color-outline-variant)', borderRadius: 1, marginTop: 6 }} />
+    </div>
+  )
+}
+
+function AnswerContent({ step }) {
+  return <MathText size="large" color="var(--md-custom-color-correct)">{step.display}</MathText>
+}
+
+/* ── Card ─────────────────────────────────────────────── */
+function StepCard({ step, isCurrent, cardRef }) {
+  return (
+    <motion.div
+      ref={isCurrent ? cardRef : undefined}
+      initial={isCurrent ? { y: 48, opacity: 0, scale: 1 } : false}
+      animate={
+        isCurrent
+          ? { y: 0, opacity: 1, scale: 1 }
+          : { y: 0, opacity: 0.4, scale: 0.85 }
+      }
+      transition={{ ease: [0.2, 0, 0, 1], duration: 0.3 }}
+      style={{
+        background: 'var(--md-sys-color-surface)',
+        borderRadius: 16,
+        padding: 20,
+        width: '100%',
+        boxShadow: isCurrent
+          ? '0 2px 8px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08)'
+          : '0 1px 2px rgba(0,0,0,0.06)',
+        transformOrigin: 'top center',
+      }}
+    >
+      <div
+        className="md-label-small"
+        style={{
+          color: 'var(--md-sys-color-on-surface-variant)',
+          letterSpacing: '0.2em',
+          textTransform: 'uppercase',
+          marginBottom: 14,
+        }}
+      >
+        {step.label}
+      </div>
+
+      {step.type === 'simple'     && <SimpleContent step={step} />}
+      {step.type === 'reorganise' && <ReorganiseContent step={step} />}
+      {step.type === 'solve'      && <SolveContent step={step} />}
+      {step.type === 'answer'     && <AnswerContent step={step} />}
+    </motion.div>
   )
 }
 
 /* ── LearnView ─────────────────────────────────────────── */
 export default function LearnView({ session, onExit, onStartPractice }) {
-  const [example, setExample] = useState(() => newExample())
-  const [stepIdx, setStepIdx] = useState(0)
+  const [example, setExample]     = useState(() => newExample())
+  const [stepIdx, setStepIdx]     = useState(0)
+  const [exampleKey, setExampleKey] = useState(0)
+  const scrollRef    = useRef(null)
+  const currentCardRef = useRef(null)
 
   const { steps } = example
   const isLast = stepIdx === steps.length - 1
 
+  // Scroll to bottom whenever a new card appears
+  useEffect(() => {
+    const t = setTimeout(() => {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+    }, 50)
+    return () => clearTimeout(t)
+  }, [stepIdx, exampleKey])
+
   function nextStep() {
     if (isLast) {
-      // Generate a new example and reset
       setExample(newExample())
       setStepIdx(0)
+      setExampleKey(k => k + 1)
     } else {
       setStepIdx(i => i + 1)
     }
@@ -110,35 +164,31 @@ export default function LearnView({ session, onExit, onStartPractice }) {
             <path d="M4 4l12 12M16 4L4 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
           </svg>
         </button>
-
         <span className="md-label-medium" style={{ color: 'var(--md-sys-color-on-surface-variant)', paddingRight: 8 }}>
           {session.topic.name} · Learn
         </span>
       </div>
 
-      {/* Main area — scrollable to show all previous steps */}
+      {/* Scrollable card stack */}
       <div
-        style={{
-          flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          padding: '16px 24px 0',
-        }}
+        ref={scrollRef}
+        style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 8px' }}
       >
-        <div style={{ width: '100%', maxWidth: 480, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {/* Previous steps — dimmed */}
-          <PrevSteps steps={steps} currentIdx={stepIdx} />
-
-          {/* Current step */}
-          <AnimatePresence mode="wait">
-            <StepCard key={stepIdx} step={steps[stepIdx]} idx={stepIdx} total={steps.length} />
-          </AnimatePresence>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 480, margin: '0 auto' }}>
+          {steps.slice(0, stepIdx + 1).map((step, i) => (
+            <StepCard
+              key={`${exampleKey}-${i}`}
+              step={step}
+              isCurrent={i === stepIdx}
+              cardRef={currentCardRef}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Bottom action area */}
+      {/* Fixed bottom action area */}
       <div style={{ flexShrink: 0, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {!isLast ? (
-          /* Mid-lesson: single Next button */
           <button
             onClick={nextStep}
             className="md-state"
@@ -153,7 +203,6 @@ export default function LearnView({ session, onExit, onStartPractice }) {
             <span className="md-label-large" style={{ color: 'inherit' }}>Next →</span>
           </button>
         ) : (
-          /* End of lesson: Start Practice is primary, Another example is secondary */
           <>
             <button
               onClick={onStartPractice}
@@ -162,7 +211,7 @@ export default function LearnView({ session, onExit, onStartPractice }) {
                 width: '100%', height: 56, borderRadius: 16, border: 'none',
                 background: 'var(--md-sys-color-primary)',
                 color: 'var(--md-sys-color-on-primary)',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 3px 8px rgba(0,0,0,0.2)',
               }}
             >
