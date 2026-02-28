@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import NavBar from './components/NavBar'
+import UpdatePrompt from './components/UpdatePrompt'
 import HomeView from './views/HomeView'
 import StatsView from './views/StatsView'
 import PracticeView from './views/PracticeView'
@@ -208,6 +209,9 @@ export default function App() {
           </motion.button>
         )}
       </AnimatePresence>
+
+      {/* ── PWA Update Snackbar ── */}
+      <UpdatePrompt />
 
       {/* ── Topic Detail Bottom Sheet ── */}
       <AnimatePresence>

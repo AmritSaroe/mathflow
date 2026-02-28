@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['logo.svg', 'icons/icon-*.png'],
       manifest: {
         name: 'MathFlow',
@@ -30,6 +30,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         // Pre-cache all build output (JS, CSS, HTML, images)
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         // Cache Google Fonts for fully offline use
