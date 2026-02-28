@@ -226,7 +226,7 @@ export default function StatsView() {
           animate={{ opacity: 1 }}
           transition={{ ease: [0.2, 0, 0, 1], duration: 0.35, delay: 0.1 }}
         >
-          <div className="chips-scroll" style={{ display: 'flex', gap: 8, overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 4, WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <FilterChip label="All" selected={filterSection == null} onClick={() => setFilterSection(null)} />
             {SECTIONS.map(sec => (
               <FilterChip key={sec.key} label={sec.label} selected={filterSection === sec.key} onClick={() => setFilterSection(s => s === sec.key ? null : sec.key)} />
