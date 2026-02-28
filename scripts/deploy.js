@@ -3,7 +3,7 @@
 //
 // Vite uses src/index.html as the entry point, so the built HTML lands at
 // dist/src/index.html.  We hoist it to dist/index.html before copying.
-import { cpSync, rmSync, renameSync, readdirSync, existsSync, mkdirSync } from 'fs'
+import { cpSync, rmSync, renameSync, readdirSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 
 // Hoist dist/src/index.html → dist/index.html (Vite puts it in a subdir
@@ -11,6 +11,12 @@ import { join } from 'path'
 const builtInSrc = 'dist/src/index.html'
 if (existsSync(builtInSrc)) {
   renameSync(builtInSrc, 'dist/index.html')
+  // Fix asset paths: Vite generates ../assets/ relative to dist/src/,
+  // but after hoisting to dist/index.html the correct path is ./assets/
+  writeFileSync(
+    'dist/index.html',
+    readFileSync('dist/index.html', 'utf8').replaceAll('../assets/', './assets/')
+  )
   // Remove the now-empty dist/src/ directory if nothing else is in it
   try { rmSync('dist/src', { recursive: true }) } catch {}
 }
