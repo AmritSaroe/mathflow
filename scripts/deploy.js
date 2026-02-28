@@ -4,6 +4,7 @@
 // Vite uses src/index.html as the entry point, so the built HTML lands at
 // dist/src/index.html.  We hoist it to dist/index.html before copying.
 import { cpSync, rmSync, renameSync, readdirSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { createHash } from 'crypto'
 import { join } from 'path'
 
 // Hoist dist/src/index.html → dist/index.html (Vite puts it in a subdir
@@ -13,12 +14,27 @@ if (existsSync(builtInSrc)) {
   renameSync(builtInSrc, 'dist/index.html')
   // Fix asset paths: Vite generates ../assets/ relative to dist/src/,
   // but after hoisting to dist/index.html the correct path is ./assets/
-  writeFileSync(
-    'dist/index.html',
-    readFileSync('dist/index.html', 'utf8')
-      .replaceAll('src="../', 'src="./')
-      .replaceAll('href="../', 'href="./')
-  )
+  const fixedHtml = readFileSync('dist/index.html', 'utf8')
+    .replaceAll('src="../', 'src="./')
+    .replaceAll('href="../', 'href="./')
+  writeFileSync('dist/index.html', fixedHtml)
+
+  // Patch dist/sw.js: the PWA plugin precached the file as "src/index.html"
+  // (its path before hoisting).  After renaming, the deployed URL is
+  // "index.html", so fix both the url key and the revision hash so
+  // createHandlerBoundToURL("index.html") can find it in the precache.
+  const swPath = 'dist/sw.js'
+  if (existsSync(swPath)) {
+    const newRevision = createHash('md5').update(fixedHtml).digest('hex')
+    const swContent = readFileSync(swPath, 'utf8')
+      .replace(
+        /\{url:"src\/index\.html",revision:"[^"]*"\}/,
+        `{url:"index.html",revision:"${newRevision}"}`
+      )
+    writeFileSync(swPath, swContent)
+    console.log(`✓ sw.js patched: src/index.html → index.html (${newRevision})`)
+  }
+
   // Remove the now-empty dist/src/ directory if nothing else is in it
   try { rmSync('dist/src', { recursive: true }) } catch {}
 }
