@@ -254,20 +254,35 @@ export default function StatsView() {
         })}
       </div>
 
-      {/* About footer */}
-      <div style={{ textAlign: 'center', padding: '24px 16px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span className="md-body-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', fontSize: 12 }}>
+      {/* About card */}
+      <div style={{
+        margin: '24px 16px 100px',
+        borderRadius: 12,
+        border: '1px solid var(--md-sys-color-outline-variant)',
+        background: 'var(--md-sys-color-surface-container)',
+        padding: '20px 24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0,
+      }}>
+        <span className="md-label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          About
+        </span>
+        <div style={{ height: 1, background: 'var(--md-sys-color-outline-variant)', margin: '10px 0' }} />
+        <span className="md-body-medium" style={{ color: 'var(--md-sys-color-on-surface)', fontWeight: 500, marginBottom: 8 }}>
           Made by Amrit Saroe
         </span>
-        <span style={{ color: 'var(--md-sys-color-outline)', fontSize: 10 }}>·</span>
         <a
           href="https://t.me/amritstudying"
           target="_blank"
           rel="noopener noreferrer"
-          className="md-body-small"
-          style={{ color: 'var(--md-sys-color-on-surface-variant)', fontSize: 12, textDecoration: 'none' }}
+          className="md-body-medium"
+          style={{ color: 'var(--md-sys-color-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}
         >
-          Telegram: @amritstudying
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M22.26 2.01 2.28 9.77c-1.37.55-1.36 1.32-.25 1.66l5.1 1.59 11.83-7.46c.56-.34 1.07-.16.65.22L9.13 15.4l-.31 5.27c.45 0 .65-.21.9-.45l2.16-2.1 5.16 3.81c.95.52 1.63.25 1.87-.88l3.39-16c.35-1.38-.53-2.01-1.04-1.04Z"/>
+          </svg>
+          @amritstudying
         </a>
       </div>
     </div>
