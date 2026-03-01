@@ -79,7 +79,11 @@ export function generateMulEnds5() {
   return { display: `${a} × ${b}`, answer: ans, typeLabel: 'multiplication', maxDigits: digits(ans) }
 }
 export function generateMulHalfStep() {
-  const base = rand(5, 100) * 2, mult = pick([0.5, 1.5, 2.5, 3.5]), ans = base * mult
+  const [lo, hi] = rand(0, 1) === 0 ? [10, 98] : [100, 998]
+  const n = rand(lo, hi)
+  const base = n % 2 === 0 ? n : n - 1
+  const mult = pick([0.5, 1.5, 2.5, 3.5])
+  const ans = base * mult
   return { display: `${base} × ${mult}`, answer: ans, typeLabel: 'multiplication', maxDigits: digits(ans) }
 }
 
