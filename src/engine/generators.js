@@ -61,6 +61,28 @@ export function generateMul1D3D() {
   return { display: fwd ? `${td} × ${od}` : `${od} × ${td}`, answer: ans, typeLabel: 'multiplication', maxDigits: digits(ans) }
 }
 
+export function generateMulConsecutive() {
+  const n = rand(10, 49), ans = n * (n + 1)
+  return { display: `${n} × ${n + 1}`, answer: ans, typeLabel: 'multiplication', maxDigits: digits(ans) }
+}
+export function generateMulGap2() {
+  const n = rand(10, 58), ans = n * (n + 2)
+  return { display: `${n} × ${n + 2}`, answer: ans, typeLabel: 'multiplication', maxDigits: digits(ans) }
+}
+export function generateMulEvenGap() {
+  const gap = pick([4, 6, 8]), n = rand(10, 60 - gap), ans = n * (n + gap)
+  return { display: `${n} × ${n + gap}`, answer: ans, typeLabel: 'multiplication', maxDigits: digits(ans) }
+}
+export function generateMulEnds5() {
+  const vals = [5, 15, 25, 35, 45, 55, 65, 75, 85, 95, 105, 115, 125]
+  const a = pick(vals), b = pick(vals), ans = a * b
+  return { display: `${a} × ${b}`, answer: ans, typeLabel: 'multiplication', maxDigits: digits(ans) }
+}
+export function generateMulHalfStep() {
+  const base = rand(5, 100) * 2, mult = pick([0.5, 1.5, 2.5, 3.5]), ans = base * mult
+  return { display: `${base} × ${mult}`, answer: ans, typeLabel: 'multiplication', maxDigits: digits(ans) }
+}
+
 export function generateTables({ t, b }) {
   const ans = t * b
   if (rand(0, 1) === 0) return { display: `${t} × ${b}`,          answer: ans, typeLabel: 'tables', maxDigits: digits(ans) }

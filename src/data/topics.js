@@ -2,6 +2,7 @@ import {
   generateAdd1D1D, generateAdd2D2D, generateAddXY02D, generateAdd3D3D,
   generateSub1D1D, generateComp10, generateMul10, generateSub2D2D, generateSub3D2D, generateSub3D3D,
   generateMul1D1D, generateMul2D1D, generateMul2D2D, generateMul1D3D,
+  generateMulConsecutive, generateMulGap2, generateMulEvenGap, generateMulEnds5, generateMulHalfStep,
   generateTables, generateSquares, generateCubes,
 } from '../engine/generators'
 import {
@@ -28,7 +29,12 @@ export const TOPICS = {
   mul_1d1d:     { name: 'Times tables',             section: 'multiplication', desc: 'e.g. 7 × 8',                     srs: true,  generate: generateMul1D1D,   pool: buildMul1D1DPool() },
   mul_2d1d:     { name: 'Two digits × one digit',       section: 'multiplication', desc: 'both ways e.g. 47×6 and 6×47',   srs: false, generate: generateMul2D1D },
   mul_2d2d:     { name: 'Two digits × two digits', section: 'multiplication', desc: 'e.g. 47 × 63',                   srs: false, generate: generateMul2D2D },
-  mul_1d3d:     { name: 'One digit × three digits',        section: 'multiplication', desc: 'e.g. 4×473 and 473×4',           srs: false, generate: generateMul1D3D },
+  mul_1d3d:          { name: 'One digit × three digits',        section: 'multiplication', desc: 'e.g. 4×473 and 473×4',           srs: false, generate: generateMul1D3D },
+  mul_consecutive:   { name: 'Consecutive numbers',             section: 'multiplication', desc: 'n × (n+1) e.g. 12×13, 24×25',    srs: false, generate: generateMulConsecutive },
+  mul_gap2:          { name: 'Numbers with gap of 2',           section: 'multiplication', desc: 'n × (n+2) e.g. 14×16, 23×25',    srs: false, generate: generateMulGap2 },
+  mul_even_gap:      { name: 'Even gap multiplication',         section: 'multiplication', desc: 'gap 4, 6, or 8 e.g. 12×16, 13×19', srs: false, generate: generateMulEvenGap },
+  mul_ends5:         { name: 'Ends in 5 × ends in 5',          section: 'multiplication', desc: 'e.g. 35×45, 75×85',               srs: false, generate: generateMulEnds5 },
+  mul_half_step:     { name: 'Multiply by 0.5 / 1.5 / 2.5 / 3.5', section: 'multiplication', desc: 'e.g. 48 × 1.5, 36 × 2.5',    srs: false, generate: generateMulHalfStep },
 
   // Memory
   tables_2_9:    { name: 'Tables 2–9',           section: 'memory',         desc: 'all 3 directions',                srs: true,  generate: generateTables,    pool: buildTablesPool(2, 9) },
