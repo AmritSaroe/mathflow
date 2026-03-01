@@ -253,6 +253,23 @@ export default function StatsView() {
           )
         })}
       </div>
+
+      {/* About footer */}
+      <div style={{ textAlign: 'center', padding: '24px 16px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span className="md-body-small" style={{ color: 'var(--md-sys-color-on-surface-variant)', fontSize: 12 }}>
+          Made by Amrit Saroe
+        </span>
+        <span style={{ color: 'var(--md-sys-color-outline)', fontSize: 10 }}>·</span>
+        <a
+          href="https://t.me/amritstudying"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="md-body-small"
+          style={{ color: 'var(--md-sys-color-on-surface-variant)', fontSize: 12, textDecoration: 'none' }}
+        >
+          Telegram: @amritstudying
+        </a>
+      </div>
     </div>
   )
 }
