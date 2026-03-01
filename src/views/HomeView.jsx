@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import logoSrc from '/logo.svg'
 import { motion, AnimatePresence } from 'framer-motion'
 import { SECTIONS, SECTION_TOPICS } from '../data/topics'
 import { getDueCount } from '../engine/srs'
@@ -171,7 +172,7 @@ export default function HomeView({ theme, onToggleTheme, onSelectTopic }) {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img
-            src="/logo.svg"
+            src={logoSrc}
             width="32"
             height="32"
             alt="MathFlow logo"
