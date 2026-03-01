@@ -170,32 +170,13 @@ export default function HomeView({ theme, onToggleTheme, onSelectTopic }) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Inline SVG logo — crisp at all pixel densities */}
-          <svg
-            width="32" height="32"
-            viewBox="0 0 512 512"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
+          <img
+            src="/logo.svg"
+            width="32"
+            height="32"
+            alt="MathFlow logo"
             style={{ flexShrink: 0, borderRadius: 7 }}
-          >
-            <defs>
-              <linearGradient id="logo-bg" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#7965AF"/>
-                <stop offset="100%" stopColor="#4F378B"/>
-              </linearGradient>
-            </defs>
-            <rect width="512" height="512" rx="115" ry="115" fill="url(#logo-bg)"/>
-            <g transform="translate(256,256)">
-              <path d="M -140 60 C -80 60, -40 -20, 0 -20 C 40 -20, 80 -80, 140 -80"
-                    fill="none" stroke="white" strokeWidth="28"
-                    strokeLinecap="round" opacity="0.92"/>
-              <circle cx="-140" cy="60" r="22" fill="white" opacity="0.88"/>
-              <circle cx="0" cy="-20" r="22" fill="white" opacity="0.92"/>
-              <circle cx="140" cy="-80" r="28" fill="white"/>
-              <line x1="140" y1="-96" x2="140" y2="-64" stroke="#6750a4" strokeWidth="5.5" strokeLinecap="round"/>
-              <line x1="124" y1="-80" x2="156" y2="-80" stroke="#6750a4" strokeWidth="5.5" strokeLinecap="round"/>
-            </g>
-          </svg>
+          />
 
           <h1 className="md-headline-large" style={{ color: 'var(--md-sys-color-on-surface)' }}>
             MathFlow
