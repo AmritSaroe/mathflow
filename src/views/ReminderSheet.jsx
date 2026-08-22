@@ -19,6 +19,14 @@ const DAYS = [
   { value: 7, label: 'Sat' },
 ]
 
+function withUiTimeout(promise, label, timeoutMs = 12000) {
+  let timer
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+}
+
 function nextReminderTime(slots) {
   if (!slots.length) return '09:00'
   const latest = [...slots].sort((a, b) => a.time.localeCompare(b.time)).at(-1)?.time || '18:00'
@@ -75,7 +83,7 @@ export default function ReminderSheet({ onClose }) {
     setBusyAction('save')
     setStatus('')
     try {
-      const result = await saveReminderSettings(settings)
+      const result = await withUiTimeout(saveReminderSettings(settings), 'Saving reminders')
       if (result.reason === 'permission-denied') {
         setStatus('Notification permission is needed for reminders.')
       } else if (result.native) {
@@ -98,7 +106,7 @@ export default function ReminderSheet({ onClose }) {
     setBusyAction('test')
     setStatus('')
     try {
-      const result = await sendTestReminder()
+      const result = await withUiTimeout(sendTestReminder(), 'Testing notification')
       setStatus(result.ok
         ? 'Test notification scheduled for about 5 seconds from now.'
         : result.reason === 'permission-denied'
@@ -123,7 +131,7 @@ export default function ReminderSheet({ onClose }) {
 
     setBusyAction('permission')
     try {
-      const result = await requestReminderPermission()
+      const result = await withUiTimeout(requestReminderPermission(), 'Requesting notification permission')
       if (!result.granted) setStatus('Notification permission is needed for reminders.')
     } catch (error) {
       setStatus(error?.message?.includes('timed out')

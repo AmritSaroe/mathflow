@@ -1,5 +1,8 @@
 package io.mathflow.app;
 
+import android.Manifest;
+import android.app.NotificationManager;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.util.Log;
 
@@ -8,12 +11,58 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import org.json.JSONArray;
 
-@CapacitorPlugin(name = "StudyReminders")
+@CapacitorPlugin(
+    name = "StudyReminders",
+    permissions = {
+        @Permission(alias = "notifications", strings = { Manifest.permission.POST_NOTIFICATIONS })
+    }
+)
 public class StudyRemindersPlugin extends Plugin {
     private static final String TAG = "MathFlowReminders";
+
+    @PluginMethod
+    public void permissionStatus(PluginCall call) {
+        Log.i(TAG, "permissionStatus start");
+        boolean granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+            || getContext().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        NotificationManager manager = (NotificationManager) getContext().getSystemService(NotificationManager.class);
+        if (manager != null && !manager.areNotificationsEnabled()) granted = false;
+        JSObject result = new JSObject();
+        result.put("granted", granted);
+        call.resolve(result);
+        Log.i(TAG, "permissionStatus resolved granted=" + granted);
+    }
+
+    @PluginMethod
+    public void requestPermission(PluginCall call) {
+        Log.i(TAG, "requestPermission start");
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || getContext().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            call.resolve(permissionResult());
+        } else {
+            requestPermissionForAlias("notifications", call, "notificationPermissionCallback");
+        }
+    }
+
+    @PermissionCallback
+    private void notificationPermissionCallback(PluginCall call) {
+        Log.i(TAG, "notificationPermissionCallback");
+        call.resolve(permissionResult());
+    }
+
+    private JSObject permissionResult() {
+        boolean granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+            || getContext().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        NotificationManager manager = (NotificationManager) getContext().getSystemService(NotificationManager.class);
+        if (manager != null && !manager.areNotificationsEnabled()) granted = false;
+        JSObject result = new JSObject();
+        result.put("granted", granted);
+        return result;
+    }
 
     @PluginMethod
     public void status(PluginCall call) {

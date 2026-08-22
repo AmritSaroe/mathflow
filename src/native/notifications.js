@@ -172,7 +172,8 @@ function notificationId(slotId, day, variant) {
 
 async function getLocalNotifications() {
   log('Loading Capacitor LocalNotifications bridge.')
-  return (await import('@capacitor/local-notifications')).LocalNotifications
+  const module = await withTimeout(import('@capacitor/local-notifications'), 'Loading LocalNotifications bridge', 5000)
+  return module.LocalNotifications
 }
 
 function withTimeout(promise, label, timeoutMs = 10000) {
@@ -239,6 +240,13 @@ async function ensureReminderChannel(LocalNotifications) {
 
 export async function requestReminderPermission() {
   if (!isNativeAndroid()) return { granted: false, native: false }
+  if (Capacitor.isPluginAvailable('StudyReminders')) {
+    let permission = await nativeCall('Checking notification permission natively', () => NativeStudyReminders.permissionStatus(), 5000)
+    if (!permission?.granted) {
+      permission = await nativeCall('Requesting notification permission natively', () => NativeStudyReminders.requestPermission(), 10000)
+    }
+    return { granted: Boolean(permission?.granted), native: true }
+  }
   const LocalNotifications = await getLocalNotifications()
   let permission = await nativeCall('Checking notification permission', () => LocalNotifications.checkPermissions())
   if (permission.display !== 'granted') {
@@ -311,8 +319,14 @@ export async function saveReminderSettings(settings) {
     return { ok: true, native: false, scheduled: 0, slots: normalized.slots.length }
   }
 
-  const LocalNotifications = await getLocalNotifications()
-  await clearScheduledReminders(LocalNotifications)
+  const useNativeScheduler = Capacitor.isPluginAvailable('StudyReminders')
+  let LocalNotifications = null
+  if (useNativeScheduler) {
+    await nativeCall('Clearing native reminder alarms', () => NativeStudyReminders.clear())
+  } else {
+    LocalNotifications = await getLocalNotifications()
+    await clearScheduledReminders(LocalNotifications)
+  }
   const runtime = loadRuntime()
 
   if (!normalized.enabled) {
@@ -328,7 +342,7 @@ export async function saveReminderSettings(settings) {
 
   const permission = await requestReminderPermission()
   if (!permission.granted) return { ok: false, native: true, reason: 'permission-denied' }
-  await ensureReminderChannel(LocalNotifications)
+  if (!useNativeScheduler) await ensureReminderChannel(LocalNotifications)
 
   const scheduleEntries = buildScheduleEntries(normalized)
   const notifications = scheduleEntries.flatMap(entry => entry.notifications)
@@ -420,10 +434,8 @@ export async function initReminderLifecycle() {
 
 export async function sendTestReminder() {
   if (!isNativeAndroid()) return { ok: false, native: false, reason: 'native-only' }
-  const LocalNotifications = await getLocalNotifications()
   const permission = await requestReminderPermission()
   if (!permission.granted) return { ok: false, native: true, reason: 'permission-denied' }
-  await ensureReminderChannel(LocalNotifications)
 
   const at = new Date(Date.now() + 5000)
   if (Capacitor.isPluginAvailable('StudyReminders')) {
@@ -435,6 +447,8 @@ export async function sendTestReminder() {
     return { ok: true, native: true, pending: true, at }
   }
 
+  const LocalNotifications = await getLocalNotifications()
+  await ensureReminderChannel(LocalNotifications)
   await nativeCall('Scheduling test notification through LocalNotifications', () => LocalNotifications.schedule({
     notifications: [{
       id: TEST_NOTIFICATION_ID,
