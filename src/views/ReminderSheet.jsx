@@ -251,13 +251,13 @@ export default function ReminderSheet({ onClose }) {
 
           <div style={{ marginTop: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-              <span className="md-label-large">Reminder slots</span>
+              <span className="md-label-large">Reminder times</span>
               <span className="md-body-small" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{settings.slots.length} configured</span>
             </div>
 
             {settings.slots.length === 0 && (
               <div style={{ padding: 16, borderRadius: 16, background: 'var(--md-sys-color-surface-container-high)', color: 'var(--md-sys-color-on-surface-variant)' }}>
-                No slots yet. Add one to start receiving reminders.
+                No reminder times yet. Add one to start receiving reminders.
               </div>
             )}
 
