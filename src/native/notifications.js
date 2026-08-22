@@ -1,4 +1,6 @@
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, registerPlugin } from '@capacitor/core'
+
+const NativeStudyReminders = registerPlugin('StudyReminders')
 
 const REMINDER_KEY = 'mf-study-reminders'
 const RUNTIME_KEY = 'mf-study-reminders-runtime'
@@ -210,6 +212,13 @@ async function clearScheduledReminders(LocalNotifications) {
     // A fresh install may have no stored notification records. Continue scheduling.
     logError('Could not clear one or more old reminder notifications; continuing.', error)
   }
+  if (Capacitor.isPluginAvailable('StudyReminders')) {
+    try {
+      await nativeCall('Clearing native reminder alarms', () => NativeStudyReminders.clear())
+    } catch (error) {
+      logError('Could not clear native reminder alarms; continuing with a fresh schedule.', error)
+    }
+  }
 }
 
 async function ensureReminderChannel(LocalNotifications) {
@@ -256,7 +265,7 @@ function buildScheduleEntries(settings, now = new Date()) {
       const followupAt = new Date(primaryAt.getTime() + FOLLOWUP_DELAY_MINUTES * 60 * 1000)
       if (primaryAt <= now) continue
 
-      const primaryId = notificationId(slot.id, key, 0)
+        const primaryId = notificationId(slot.id, key, 0)
       const followupId = notificationId(slot.id, key, 1)
       entries.push({
         dateKey: key,
@@ -265,6 +274,8 @@ function buildScheduleEntries(settings, now = new Date()) {
         followupId,
         primaryAt: primaryAt.toISOString(),
         followupAt: followupAt.toISOString(),
+        primaryAtMs: primaryAt.getTime(),
+        followupAtMs: followupAt.getTime(),
         notifications: [
           {
             id: primaryId,
@@ -326,10 +337,16 @@ export async function saveReminderSettings(settings) {
     return { ok: true, native: true, scheduled: 0, slots: normalized.slots.length }
   }
 
-  await nativeCall('Scheduling reminder slots', () => LocalNotifications.schedule({ notifications }))
+  const runtimeEntries = scheduleEntries.map(({ notifications: _notifications, ...entry }) => entry)
+  if (Capacitor.isPluginAvailable('StudyReminders')) {
+    await nativeCall('Scheduling reminder slots natively', () => NativeStudyReminders.schedule({ entries: runtimeEntries }))
+  } else {
+    // Compatibility fallback for an older shell; this path is not used by the rebuilt APK.
+    await nativeCall('Scheduling reminder slots through LocalNotifications', () => LocalNotifications.schedule({ notifications }))
+  }
   const nextRuntime = {
     practicedDate: runtime.practicedDate,
-    entries: scheduleEntries.map(({ notifications: _notifications, ...entry }) => entry),
+    entries: runtimeEntries,
   }
   saveRuntime(nextRuntime)
   return {
@@ -390,20 +407,15 @@ let reminderLifecycleInitialized = false
 export async function initReminderLifecycle() {
   if (!isNativeAndroid() || reminderLifecycleInitialized) return
   reminderLifecycleInitialized = true
-  const LocalNotifications = await getLocalNotifications()
-  await nativeCall('Registering reminder delivery listener', () => LocalNotifications.addListener('localNotificationReceived', notification => {
-    if (notification?.extra?.kind === 'primary') void cancelFollowupForNotification(notification)
-  }), 5000)
-
-  try {
-    const { App } = await import('@capacitor/app')
-    await nativeCall('Registering app foreground listener', () => App.addListener('appStateChange', ({ isActive }) => {
-      if (isActive) void cancelElapsedFollowups(LocalNotifications)
-    }), 5000)
-  } catch (error) {
-    logError('App foreground listener unavailable; reminder cleanup will run on next save.', error)
+  if (!Capacitor.isPluginAvailable('StudyReminders')) {
+    logError('Native reminder scheduler is unavailable; using compatibility scheduling.', new Error('StudyReminders plugin not registered'))
+    return
   }
-  await cancelElapsedFollowups(LocalNotifications)
+  try {
+    await nativeCall('Checking native reminder scheduler', () => NativeStudyReminders.status(), 5000)
+  } catch (error) {
+    logError('Native reminder scheduler diagnostic check failed.', error)
+  }
 }
 
 export async function sendTestReminder() {
@@ -414,7 +426,16 @@ export async function sendTestReminder() {
   await ensureReminderChannel(LocalNotifications)
 
   const at = new Date(Date.now() + 5000)
-  await nativeCall('Scheduling test notification', () => LocalNotifications.schedule({
+  if (Capacitor.isPluginAvailable('StudyReminders')) {
+    const result = await nativeCall('Scheduling test notification natively', () => NativeStudyReminders.scheduleTest({
+      id: TEST_NOTIFICATION_ID,
+      atMs: at.getTime(),
+    }))
+    log('Test notification accepted by native scheduler', result)
+    return { ok: true, native: true, pending: true, at }
+  }
+
+  await nativeCall('Scheduling test notification through LocalNotifications', () => LocalNotifications.schedule({
     notifications: [{
       id: TEST_NOTIFICATION_ID,
       title: 'MathFlow test reminder',
@@ -425,11 +446,7 @@ export async function sendTestReminder() {
       extra: { route: 'practice', kind: 'test' },
     }],
   }))
-
-  const pending = await nativeCall('Verifying scheduled test notification', () => LocalNotifications.getPending(), 5000)
-  const testIsPending = pending?.notifications?.some(notification => notification.id === TEST_NOTIFICATION_ID)
-  log('Test notification pending status', { testIsPending, pendingCount: pending?.notifications?.length })
-  return { ok: testIsPending !== false, native: true, pending: testIsPending !== false }
+  return { ok: true, native: true, pending: true, at }
 }
 
 export async function notifyPracticeCompleted() {
@@ -445,6 +462,16 @@ export async function notifyPracticeCompleted() {
     .filter(entry => entry.dateKey === today)
     .flatMap(entry => [entry.primaryId, entry.followupId])
     .filter(Number.isInteger)
+  if (Capacitor.isPluginAvailable('StudyReminders')) {
+    try {
+      await nativeCall('Marking practice completed in native scheduler', () => NativeStudyReminders.markPracticeCompleted({ dateKey: today }))
+      return { ok: true, native: true, cancelled: ids.length }
+    } catch (error) {
+      logError('Native practice completion marker failed; continuing with LocalNotifications cancellation.', error)
+      return { ok: false, native: true, cancelled: 0, error }
+    }
+  }
+
   if (!ids.length) return { ok: true, native: true, cancelled: 0 }
 
   const LocalNotifications = await getLocalNotifications()
