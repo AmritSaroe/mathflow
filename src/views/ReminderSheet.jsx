@@ -67,7 +67,9 @@ export default function ReminderSheet({ onClose }) {
         ? 'Test notification scheduled for now.'
         : result.reason === 'permission-denied'
           ? 'Notification permission is needed for the test.'
-          : 'Install the Android app to test a notification.')
+          : result.pending === false
+            ? 'Android did not retain the test reminder.'
+            : 'Install the Android app to test a notification.')
     } catch (error) {
       setStatus(error?.message?.includes('timed out')
         ? 'The test took too long. Please try again.'

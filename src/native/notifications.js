@@ -74,16 +74,6 @@ async function ensureReminderChannel(LocalNotifications) {
   }
 }
 
-async function checkExactAlarmSetting(LocalNotifications) {
-  try {
-    const result = await withTimeout(LocalNotifications.checkExactNotificationSetting(), 'Checking exact alarm setting', 5000)
-    return result?.value !== false
-  } catch {
-    // Older Android/plugin combinations may not expose this setting.
-    return true
-  }
-}
-
 export async function requestReminderPermission() {
   if (!isNativeAndroid()) return { granted: false, native: false }
   const LocalNotifications = await getLocalNotifications()
@@ -127,6 +117,7 @@ export async function saveReminderSettings(settings) {
         on: { weekday, hour, minute },
         repeats: true,
         allowWhileIdle: false,
+        isExactNotification: false,
       },
       channelId: REMINDER_CHANNEL_ID,
       extra: { route: 'practice' },
@@ -142,16 +133,17 @@ export async function sendTestReminder() {
   const permission = await requestReminderPermission()
   if (!permission.granted) return { ok: false, native: true, reason: 'permission-denied' }
   await ensureReminderChannel(LocalNotifications)
-  const exactAlarmsAvailable = await checkExactAlarmSetting(LocalNotifications)
   await withTimeout(LocalNotifications.schedule({
     notifications: [{
       id: 5299,
       title: 'MathFlow test reminder',
       body: 'Your practice reminder is working. Ready for one quick drill?',
-      schedule: { at: new Date(Date.now() + 5000), allowWhileIdle: true },
+      schedule: { at: new Date(Date.now() + 5000), allowWhileIdle: true, isExactNotification: false },
       channelId: REMINDER_CHANNEL_ID,
       extra: { route: 'practice' },
     }],
   }), 'Scheduling test notification')
-  return { ok: true, native: true, exactAlarmsAvailable }
+  const pending = await withTimeout(LocalNotifications.getPending(), 'Checking scheduled test notification', 5000)
+  const testIsPending = pending?.notifications?.some(notification => notification.id === 5299)
+  return { ok: testIsPending !== false, native: true, pending: testIsPending !== false }
 }
