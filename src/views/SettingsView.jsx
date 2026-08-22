@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { PALETTES } from '../theme/material'
 import {
   clearReminderDiagnostics,
   copyReminderDiagnostics,
@@ -52,7 +51,7 @@ function reminderSummary(settings) {
   return `On · ${times.join(', ')}${extra}`
 }
 
-export default function SettingsView({ theme, palette, onToggleTheme, onPaletteChange, onOpenReminders, remindersRevision }) {
+export default function SettingsView({ theme, onToggleTheme, onOpenReminders, remindersRevision }) {
   const [settings, setSettings] = useState(() => loadReminderSettings())
   const [diagnosticEntries, setDiagnosticEntries] = useState(() => getReminderDiagnostics())
   const [copyState, setCopyState] = useState('')
@@ -116,32 +115,6 @@ export default function SettingsView({ theme, palette, onToggleTheme, onPaletteC
           </span>
           <span className="md-label-large" style={{ color: 'var(--md-sys-color-primary)' }}>Change</span>
         </button>
-
-        <p className="md-label-large" style={{ margin: '28px 0 8px 4px', color: 'var(--md-sys-color-on-surface-variant)' }}>Color palette</p>
-        <div role="radiogroup" aria-label="Color palette" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-          {PALETTES.map(option => {
-            const selected = palette === option.id
-            return (
-              <button
-                key={option.id}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                className="md-state"
-                onClick={() => onPaletteChange(option.id)}
-                style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 10px', borderRadius: 14, border: selected ? '2px solid var(--md-sys-color-primary)' : '1px solid var(--md-sys-color-outline-variant)', background: selected ? 'var(--md-sys-color-secondary-container)' : 'var(--md-sys-color-surface-container)', color: 'var(--md-sys-color-on-surface)', textAlign: 'left', cursor: 'pointer' }}
-              >
-                <span aria-hidden="true" style={{ width: 28, height: 28, flexShrink: 0, borderRadius: 14, background: option.seed, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.16)' }} />
-                <span style={{ minWidth: 0, flex: 1 }}>
-                  <span className="md-label-large" style={{ display: 'block', color: selected ? 'var(--md-sys-color-on-secondary-container)' : 'var(--md-sys-color-on-surface)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{option.name}</span>
-                  <span className="md-body-small" style={{ display: 'block', marginTop: 2, color: selected ? 'var(--md-sys-color-on-secondary-container)' : 'var(--md-sys-color-on-surface-variant)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{option.description}</span>
-                </span>
-                {selected && <span aria-hidden="true" style={{ color: 'var(--md-sys-color-primary)', fontSize: 18, lineHeight: 1 }}>✓</span>}
-              </button>
-            )
-          })}
-        </div>
-        <p className="md-body-small" style={{ margin: '8px 4px 0', color: 'var(--md-sys-color-on-surface-variant)' }}>Each palette creates a coordinated Material 3 light and dark color scheme.</p>
 
         <p className="md-label-large" style={{ margin: '28px 0 8px 4px', color: 'var(--md-sys-color-on-surface-variant)' }}>Help and troubleshooting</p>
         <details style={{ borderRadius: 16, padding: '2px 16px 14px', background: 'var(--md-sys-color-surface-container)' }}>

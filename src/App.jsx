@@ -11,7 +11,7 @@ import TopicDetailSheet from './views/TopicDetailSheet'
 import ReminderSheet from './views/ReminderSheet'
 import SettingsView from './views/SettingsView'
 import { initReminderLifecycle } from './native/notifications'
-import { getSavedPalette, initTheme, applyTheme } from './theme/material'
+import { initTheme, applyTheme } from './theme/material'
 import { TOPICS } from './data/topics'
 
 /* ── M3 screen transition variants ───────────────────── */
@@ -24,7 +24,6 @@ const SCREEN = {
 export default function App() {
   const [tab, setTab]             = useState('home')
   const [theme, setTheme]         = useState(() => initTheme())
-  const [palette, setPalette]     = useState(() => getSavedPalette())
   const [selectedTopic, setTopic] = useState(null)
   const [remindersOpen, setRemindersOpen] = useState(false)
   const [remindersRevision, setRemindersRevision] = useState(0)
@@ -41,14 +40,8 @@ export default function App() {
   function toggleTheme() {
     const next = theme === 'dark' ? 'light' : 'dark'
     setTheme(next)
-    applyTheme(next === 'dark', palette)
+    applyTheme(next === 'dark')
     localStorage.setItem('mf-theme', next)
-  }
-
-  function changePalette(nextPalette) {
-    setPalette(nextPalette)
-    applyTheme(theme === 'dark', nextPalette)
-    localStorage.setItem('mf-palette', nextPalette)
   }
 
   /* ── Session lifecycle ─────────────────────────────── */
@@ -122,9 +115,7 @@ export default function App() {
                         style={{ position: 'absolute', inset: 0, overflowY: 'auto' }}>
               <SettingsView
                 theme={theme}
-                palette={palette}
                 onToggleTheme={toggleTheme}
-                onPaletteChange={changePalette}
                 onOpenReminders={() => setRemindersOpen(true)}
                 remindersRevision={remindersRevision}
               />
