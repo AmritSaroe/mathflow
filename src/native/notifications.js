@@ -11,6 +11,8 @@ const SCHEDULE_HORIZON_DAYS = 7
 export const FOLLOWUP_DELAY_MINUTES = 45
 const DEFAULT_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7]
 const DEFAULT_SLOT_ID = 'default-slot'
+const DIAGNOSTIC_KEY = 'mf-study-reminders-diagnostics'
+const MAX_DIAGNOSTIC_ENTRIES = 120
 
 export const DEFAULT_REMINDER_SETTINGS = {
   enabled: false,
@@ -22,13 +24,106 @@ export const DEFAULT_REMINDER_SETTINGS = {
   }],
 }
 
+function diagnosticValue(value) {
+  if (value instanceof Error) return { name: value.name, message: value.message, stack: value.stack }
+  if (value === undefined) return undefined
+  try {
+    JSON.stringify(value)
+    return value
+  } catch {
+    return String(value)
+  }
+}
+
+function appendDiagnostic(level, message, data) {
+  try {
+    const current = JSON.parse(localStorage.getItem(DIAGNOSTIC_KEY) || '[]')
+    const entry = {
+      at: new Date().toISOString(),
+      level,
+      message,
+      ...(data === undefined ? {} : { data: diagnosticValue(data) }),
+    }
+    const next = [...(Array.isArray(current) ? current : []), entry].slice(-MAX_DIAGNOSTIC_ENTRIES)
+    localStorage.setItem(DIAGNOSTIC_KEY, JSON.stringify(next))
+  } catch {
+    // Diagnostics must never interfere with reminder behavior.
+  }
+}
+
 function log(message, data) {
+  appendDiagnostic('info', message, data)
   if (data === undefined) console.info(`[MathFlow reminders] ${message}`)
   else console.info(`[MathFlow reminders] ${message}`, data)
 }
 
 function logError(message, error) {
+  appendDiagnostic('error', message, error)
   console.error(`[MathFlow reminders] ${message}`, error)
+}
+
+export function recordReminderDiagnostic(message, data) {
+  logError(`UI: ${message}`, data)
+}
+
+export function getReminderDiagnostics() {
+  try {
+    const entries = JSON.parse(localStorage.getItem(DIAGNOSTIC_KEY) || '[]')
+    return Array.isArray(entries) ? entries : []
+  } catch {
+    return []
+  }
+}
+
+export function getReminderDiagnosticsText() {
+  const header = [
+    'MathFlow Study Reminders diagnostics',
+    `Captured: ${new Date().toISOString()}`,
+    `Platform: ${Capacitor.getPlatform()} / native=${Capacitor.isNativePlatform()}`,
+    `User agent: ${typeof navigator === 'undefined' ? 'unavailable' : navigator.userAgent}`,
+    '',
+  ]
+  const lines = getReminderDiagnostics().map(entry => {
+    const data = entry.data === undefined ? '' : ` | ${JSON.stringify(entry.data)}`
+    return `[${entry.at}] ${String(entry.level).toUpperCase()} ${entry.message}${data}`
+  })
+  return [...header, ...(lines.length ? lines : ['No reminder events recorded.'])].join('\\n')
+}
+
+export async function copyReminderDiagnostics() {
+  const text = getReminderDiagnosticsText()
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return { ok: true, text }
+    }
+  } catch (error) {
+    appendDiagnostic('error', 'Clipboard API failed; trying fallback.', error)
+  }
+
+  try {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.setAttribute('readonly', '')
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    const ok = document.execCommand('copy')
+    textarea.remove()
+    return { ok, text }
+  } catch (error) {
+    appendDiagnostic('error', 'Clipboard fallback failed.', error)
+    return { ok: false, text }
+  }
+}
+
+export function clearReminderDiagnostics() {
+  try {
+    localStorage.removeItem(DIAGNOSTIC_KEY)
+  } catch {
+    // Ignore storage failures; the diagnostics view remains usable.
+  }
 }
 
 export function isNativeAndroid() {
