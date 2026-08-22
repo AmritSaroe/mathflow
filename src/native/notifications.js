@@ -40,6 +40,14 @@ async function getLocalNotifications() {
   return (await import('@capacitor/local-notifications')).LocalNotifications
 }
 
+function withTimeout(promise, label, timeoutMs = 10000) {
+  let timer
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+}
+
 async function clearScheduledReminders(LocalNotifications) {
   try {
     await LocalNotifications.cancel({
@@ -53,9 +61,9 @@ async function clearScheduledReminders(LocalNotifications) {
 export async function requestReminderPermission() {
   if (!isNativeAndroid()) return { granted: false, native: false }
   const LocalNotifications = await getLocalNotifications()
-  let permission = await LocalNotifications.checkPermissions()
+  let permission = await withTimeout(LocalNotifications.checkPermissions(), 'Checking notification permission')
   if (permission.display !== 'granted') {
-    permission = await LocalNotifications.requestPermissions()
+    permission = await withTimeout(LocalNotifications.requestPermissions(), 'Requesting notification permission')
   }
   return { granted: permission.display === 'granted', native: true }
 }
@@ -83,7 +91,7 @@ export async function saveReminderSettings(settings) {
   if (!normalized.weekdays.length) return { ok: false, native: true, reason: 'no-days' }
 
   const [hour, minute] = normalized.time.split(':').map(Number)
-  await LocalNotifications.schedule({
+  await withTimeout(LocalNotifications.schedule({
     notifications: normalized.weekdays.map(weekday => ({
       id: 5200 + weekday,
       title: 'MathFlow practice time',
@@ -95,7 +103,7 @@ export async function saveReminderSettings(settings) {
       },
       extra: { route: 'practice' },
     })),
-  })
+  }), 'Scheduling study reminders')
 
   return { ok: true, native: true, scheduled: normalized.weekdays.length }
 }
@@ -105,7 +113,7 @@ export async function sendTestReminder() {
   const LocalNotifications = await getLocalNotifications()
   const permission = await requestReminderPermission()
   if (!permission.granted) return { ok: false, native: true, reason: 'permission-denied' }
-  await LocalNotifications.schedule({
+  await withTimeout(LocalNotifications.schedule({
     notifications: [{
       id: 5299,
       title: 'MathFlow test reminder',
@@ -113,6 +121,6 @@ export async function sendTestReminder() {
       schedule: { at: new Date(Date.now() + 1500) },
       extra: { route: 'practice' },
     }],
-  })
+  }), 'Scheduling test notification')
   return { ok: true, native: true }
 }

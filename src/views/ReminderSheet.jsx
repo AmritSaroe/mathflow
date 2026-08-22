@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  DEFAULT_REMINDER_SETTINGS,
   isNativeAndroid,
   loadReminderSettings,
   saveReminderSettings,
@@ -37,24 +36,39 @@ export default function ReminderSheet({ onClose }) {
   async function handleSave() {
     setBusy(true)
     setStatus('')
-    const result = await saveReminderSettings(settings)
-    setBusy(false)
-    if (result.reason === 'no-days') {
-      setStatus('Choose at least one day.')
-    } else if (result.reason === 'permission-denied') {
-      setStatus('Notification permission is needed for reminders.')
-    } else if (result.native) {
-      setStatus(settings.enabled ? `Reminder set for ${result.scheduled} day${result.scheduled === 1 ? '' : 's'}.` : 'Reminders turned off.')
-    } else {
-      setStatus('Reminder settings saved. Native notifications are available in the Android app.')
+    try {
+      const result = await saveReminderSettings(settings)
+      if (result.reason === 'no-days') {
+        setStatus('Choose at least one day.')
+      } else if (result.reason === 'permission-denied') {
+        setStatus('Notification permission is needed for reminders.')
+      } else if (result.native) {
+        setStatus(settings.enabled ? `Reminder set for ${result.scheduled} day${result.scheduled === 1 ? '' : 's'}.` : 'Reminders turned off.')
+      } else {
+        setStatus('Reminder settings saved. Native notifications are available in the Android app.')
+      }
+    } catch (error) {
+      setStatus(error?.message?.includes('timed out')
+        ? 'Android notifications took too long. Please try again.'
+        : 'Could not save reminder settings. Please try again.')
+    } finally {
+      setBusy(false)
     }
   }
 
   async function handleTest() {
     setBusy(true)
-    const result = await sendTestReminder()
-    setBusy(false)
-    setStatus(result.ok ? 'Test notification scheduled for now.' : 'Install the Android app to test a notification.')
+    setStatus('')
+    try {
+      const result = await sendTestReminder()
+      setStatus(result.ok ? 'Test notification scheduled for now.' : 'Install the Android app to test a notification.')
+    } catch (error) {
+      setStatus(error?.message?.includes('timed out')
+        ? 'The test took too long. Please try again.'
+        : 'Could not schedule the test notification. Please try again.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -172,7 +186,7 @@ export default function ReminderSheet({ onClose }) {
           </div>
 
           {status && (
-            <p className="md-body-medium" role="status" style={{ margin: '16px 0 0', color: status.includes('needed') || status.includes('Choose') ? 'var(--md-sys-color-error)' : 'var(--md-sys-color-primary)' }}>
+            <p className="md-body-medium" role="status" style={{ margin: '16px 0 0', color: status.includes('needed') || status.includes('Choose') || status.includes('Could') || status.includes('took too long') ? 'var(--md-sys-color-error)' : 'var(--md-sys-color-primary)' }}>
               {status}
             </p>
           )}
