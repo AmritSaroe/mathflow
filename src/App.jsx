@@ -9,6 +9,7 @@ import ResultView from './views/ResultView'
 import LearnView from './views/LearnView'
 import TopicDetailSheet from './views/TopicDetailSheet'
 import ReminderSheet from './views/ReminderSheet'
+import SettingsView from './views/SettingsView'
 import { initReminderLifecycle } from './native/notifications'
 import { initTheme, applyTheme } from './theme/material'
 import { TOPICS } from './data/topics'
@@ -25,6 +26,7 @@ export default function App() {
   const [theme, setTheme]         = useState(() => initTheme())
   const [selectedTopic, setTopic] = useState(null)
   const [remindersOpen, setRemindersOpen] = useState(false)
+  const [remindersRevision, setRemindersRevision] = useState(0)
   const [session, setSession]     = useState(null)
   const [sessionId, setSessionId] = useState(0)
   const [result, setResult]       = useState(null)
@@ -99,7 +101,6 @@ export default function App() {
                 theme={theme}
                 onToggleTheme={toggleTheme}
                 onSelectTopic={setTopic}
-                onOpenReminders={() => setRemindersOpen(true)}
               />
             </motion.div>
           )}
@@ -107,6 +108,17 @@ export default function App() {
             <motion.div key="stats" variants={SCREEN} initial="initial" animate="animate" exit="exit"
                         style={{ position: 'absolute', inset: 0, overflowY: 'auto' }}>
               <StatsView />
+            </motion.div>
+          )}
+          {showNav && tab === 'settings' && (
+            <motion.div key="settings" variants={SCREEN} initial="initial" animate="animate" exit="exit"
+                        style={{ position: 'absolute', inset: 0, overflowY: 'auto' }}>
+              <SettingsView
+                theme={theme}
+                onToggleTheme={toggleTheme}
+                onOpenReminders={() => setRemindersOpen(true)}
+                remindersRevision={remindersRevision}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -225,7 +237,7 @@ export default function App() {
       {/* ── Study reminders bottom sheet ── */}
       <AnimatePresence>
         {showNav && remindersOpen && (
-          <ReminderSheet onClose={() => setRemindersOpen(false)} />
+          <ReminderSheet onClose={() => { setRemindersOpen(false); setRemindersRevision(value => value + 1) }} />
         )}
       </AnimatePresence>
 

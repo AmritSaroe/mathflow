@@ -106,15 +106,6 @@ function MoonIcon() {
   )
 }
 
-function BellIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-      <path d="M5.5 9.5a5.5 5.5 0 0111 0c0 6 2 6 2 7H3.5c0-1 2-1 2-7z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
-      <path d="M9 19h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/>
-    </svg>
-  )
-}
-
 function ChevronDown() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -124,7 +115,7 @@ function ChevronDown() {
 }
 
 /* ── Home view ─────────────────────────────────────── */
-export default function HomeView({ theme, onToggleTheme, onSelectTopic, onOpenReminders }) {
+export default function HomeView({ theme, onToggleTheme, onSelectTopic }) {
   const [openKey, setOpenKey] = useState(null)
 
   /* Compute per-topic due counts once on mount */
@@ -194,24 +185,6 @@ export default function HomeView({ theme, onToggleTheme, onSelectTopic, onOpenRe
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {/* Study reminders — M3 icon button */}
-          <button
-            onClick={onOpenReminders}
-            className="md-state"
-            aria-label="Study reminders"
-            style={{
-              width: 48, height: 48,
-              borderRadius: 24,
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--md-sys-color-on-surface-variant)',
-            }}
-          >
-            <BellIcon />
-          </button>
-
           {/* Theme toggle — M3 icon button */}
           <button
             onClick={onToggleTheme}
