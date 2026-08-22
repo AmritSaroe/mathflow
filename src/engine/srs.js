@@ -5,7 +5,19 @@ const SRS_KEY = 'mathflow_srs_v3'
 const load  = () => { try { return JSON.parse(localStorage.getItem(SRS_KEY) || '{}') } catch { return {} } }
 const save  = (d) => { try { localStorage.setItem(SRS_KEY, JSON.stringify(d)) } catch {} }
 const key   = (topicId, item) => topicId + '_' + Object.values(item).join('_')
-const card  = (d, k) => d[k] || { ease: 2.5, interval: 1, due: 0, reps: 0 }
+const emptyCard = () => ({ ease: 2.5, interval: 1, due: 0, reps: 0 })
+const card  = (d, k) => d[k] || emptyCard()
+
+function readCard(d, topicId, item) {
+  const currentKey = key(topicId, item)
+  if (d[currentKey]) return { card: d[currentKey], key: currentKey }
+  // Make 10 used the same facts before it became Complements of 10.
+  if (topicId === 'sub_complements' && item.target === 10) {
+    const legacyKey = key('sub_comp10', { b: item.given })
+    if (d[legacyKey]) return { card: d[legacyKey], key: currentKey }
+  }
+  return { card: emptyCard(), key: currentKey }
+}
 
 function updateCard(c, correct) {
   if (correct) {
@@ -22,7 +34,7 @@ function updateCard(c, correct) {
 export function pickSRSItem(topicId, pool) {
   const d = load(), now = Date.now()
   const scored = pool.map(item => {
-    const c = card(d, key(topicId, item))
+    const c = readCard(d, topicId, item).card
     return { item, score: c.reps === 0 ? 0 : now - c.due }
   })
   scored.sort((a, b) => b.score - a.score)
@@ -31,8 +43,9 @@ export function pickSRSItem(topicId, pool) {
 }
 
 export function recordSRS(topicId, item, correct) {
-  const d = load(), k = key(topicId, item)
-  d[k] = updateCard(card(d, k), correct)
+  const d = load()
+  const { card: currentCard, key: k } = readCard(d, topicId, item)
+  d[k] = updateCard(currentCard, correct)
   save(d)
 }
 
@@ -40,7 +53,7 @@ export function getDueCount(topicId, pool) {
   if (!pool?.length) return 0
   const d = load(), now = Date.now()
   return pool.filter(item => {
-    const c = card(d, key(topicId, item))
+    const c = readCard(d, topicId, item).card
     return c.reps > 0 && now >= c.due
   }).length
 }
@@ -50,7 +63,7 @@ export function getDueCount(topicId, pool) {
 export function hasAnyAttempts(topicId, pool) {
   if (!pool?.length) return false
   const d = load()
-  return pool.some(item => (d[key(topicId, item)]?.due ?? 0) > 0)
+  return pool.some(item => readCard(d, topicId, item).card.due > 0)
 }
 
 export function getMasteryPercent(topicId, pool) {
@@ -58,7 +71,7 @@ export function getMasteryPercent(topicId, pool) {
   const d = load()
   let mastered = 0
   for (const item of pool) {
-    const c = card(d, key(topicId, item))
+    const c = readCard(d, topicId, item).card
     if (c.reps >= 3 && c.ease >= 2.3) mastered++
   }
   return Math.round(mastered / pool.length * 100)

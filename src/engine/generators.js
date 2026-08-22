@@ -75,6 +75,18 @@ export function generateComp10({ b }) {
   const ans = 10 - b
   return { display: `10 − ${b}`, answer: ans, typeLabel: 'complement to 10', maxDigits: digits(ans) }
 }
+
+export function generateComplements({ target, given }) {
+  const answer = target - given
+  return {
+    display: `${given} + ? = ${target}`,
+    answer,
+    typeLabel: `complement to ${target}`,
+    maxDigits: digits(answer),
+    target,
+    given,
+  }
+}
 export function generateMul10({ tens, b }) {
   const a = tens * 10, ans = a - b
   return { display: `${a} − ${b}`, answer: ans, typeLabel: 'tens − 1D', maxDigits: digits(ans) }

@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { rand } from '../engine/generators'
+import ComplementsGuide from '../components/ComplementsGuide'
 
-/* ── Step data ────────────────────────────────────────── */
+/* ── Addition tutorial data ────────────────────────────── */
 function makeAdd2D2DSteps(a, b) {
   const aT = Math.floor(a / 10) * 10, aO = a % 10
   const bT = Math.floor(b / 10) * 10, bO = b % 10
@@ -17,9 +18,26 @@ function makeAdd2D2DSteps(a, b) {
   ]
 }
 
-function newExample() {
+function newAdditionExample() {
   const a = rand(12, 99), b = rand(12, 99)
   return { a, b, steps: makeAdd2D2DSteps(a, b) }
+}
+
+/* ── Complements tutorial data ─────────────────────────── */
+function makeComplementSteps(given, target) {
+  const answer = target - given
+  return [
+    { label: 'Look', type: 'complement', given, target, answer, message: `We have ${given}. Our target is ${target}.` },
+    { label: 'Find the gap', type: 'complement', given, target, answer, message: `The empty part is what we need to find.` },
+    { label: 'Count the missing part', type: 'complement', given, target, answer, message: `Count the empty blocks: there are ${answer}.` },
+    { label: 'Answer', type: 'complementAnswer', given, target, answer, message: `${given} plus ${answer} makes ${target}.` },
+  ]
+}
+
+function newComplementExample(targets = [10]) {
+  const target = targets[Math.floor(Math.random() * targets.length)] || 10
+  const given = rand(1, target - 1)
+  return { given, target, steps: makeComplementSteps(given, target) }
 }
 
 /* ── Math text ────────────────────────────────────────── */
@@ -77,6 +95,26 @@ function AnswerContent({ step }) {
   return <MathText size="large" color="var(--md-custom-color-correct)">{step.display}</MathText>
 }
 
+function ComplementContent({ step }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+      <ComplementsGuide given={step.given} target={step.target} answer={step.answer} />
+      <p className="md-body-medium" style={{ margin: 0, textAlign: 'center', color: 'var(--md-sys-color-on-surface-variant)' }}>
+        {step.message}
+      </p>
+    </div>
+  )
+}
+
+function ComplementAnswerContent({ step }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <ComplementsGuide given={step.given} target={step.target} answer={step.answer} />
+      <MathText size="large" color="var(--md-custom-color-correct)">{step.answer}</MathText>
+    </div>
+  )
+}
+
 /* ── Card ─────────────────────────────────────────────── */
 function StepCard({ step, isCurrent, cardRef }) {
   return (
@@ -112,26 +150,29 @@ function StepCard({ step, isCurrent, cardRef }) {
         {step.label}
       </div>
 
-      {step.type === 'simple'     && <SimpleContent step={step} />}
+      {step.type === 'simple' && <SimpleContent step={step} />}
       {step.type === 'reorganise' && <ReorganiseContent step={step} />}
-      {step.type === 'solve'      && <SolveContent step={step} />}
-      {step.type === 'answer'     && <AnswerContent step={step} />}
+      {step.type === 'solve' && <SolveContent step={step} />}
+      {step.type === 'answer' && <AnswerContent step={step} />}
+      {step.type === 'complement' && <ComplementContent step={step} />}
+      {step.type === 'complementAnswer' && <ComplementAnswerContent step={step} />}
     </motion.div>
   )
 }
 
 /* ── LearnView ─────────────────────────────────────────── */
 export default function LearnView({ session, onExit, onStartPractice }) {
-  const [example, setExample]     = useState(() => newExample())
-  const [stepIdx, setStepIdx]     = useState(0)
+  const isComplements = session.topic?.isComplements
+  const targets = session.complementTargets?.length ? session.complementTargets : [10]
+  const [example, setExample] = useState(() => isComplements ? newComplementExample(targets) : newAdditionExample())
+  const [stepIdx, setStepIdx] = useState(0)
   const [exampleKey, setExampleKey] = useState(0)
-  const scrollRef    = useRef(null)
+  const scrollRef = useRef(null)
   const currentCardRef = useRef(null)
 
   const { steps } = example
   const isLast = stepIdx === steps.length - 1
 
-  // Scroll to bottom whenever a new card appears
   useEffect(() => {
     const t = setTimeout(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -141,7 +182,7 @@ export default function LearnView({ session, onExit, onStartPractice }) {
 
   function nextStep() {
     if (isLast) {
-      setExample(newExample())
+      setExample(isComplements ? newComplementExample(targets) : newAdditionExample())
       setStepIdx(0)
       setExampleKey(k => k + 1)
     } else {
@@ -151,8 +192,6 @@ export default function LearnView({ session, onExit, onStartPractice }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: 'var(--md-sys-color-background)' }}>
-
-      {/* Top bar */}
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px 4px 4px', minHeight: 52 }}>
         <button
           onClick={onExit}
@@ -161,7 +200,7 @@ export default function LearnView({ session, onExit, onStartPractice }) {
           style={{ width: 48, height: 48, borderRadius: 24, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--md-sys-color-on-surface-variant)' }}
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path d="M4 4l12 12M16 4L4 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            <path d="M4 4l12 12M16 4L4 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         </button>
         <span className="md-label-medium" style={{ color: 'var(--md-sys-color-on-surface-variant)', paddingRight: 8 }}>
@@ -169,24 +208,14 @@ export default function LearnView({ session, onExit, onStartPractice }) {
         </span>
       </div>
 
-      {/* Scrollable card stack */}
-      <div
-        ref={scrollRef}
-        style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 8px' }}
-      >
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 8px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 480, margin: '0 auto' }}>
           {steps.slice(0, stepIdx + 1).map((step, i) => (
-            <StepCard
-              key={`${exampleKey}-${i}`}
-              step={step}
-              isCurrent={i === stepIdx}
-              cardRef={currentCardRef}
-            />
+            <StepCard key={`${exampleKey}-${i}`} step={step} isCurrent={i === stepIdx} cardRef={currentCardRef} />
           ))}
         </div>
       </div>
 
-      {/* Fixed bottom action area */}
       <div style={{ flexShrink: 0, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {!isLast ? (
           <button
@@ -194,8 +223,7 @@ export default function LearnView({ session, onExit, onStartPractice }) {
             className="md-state"
             style={{
               width: '100%', height: 56, borderRadius: 16, border: 'none',
-              background: 'var(--md-sys-color-primary)',
-              color: 'var(--md-sys-color-on-primary)',
+              background: 'var(--md-sys-color-primary)', color: 'var(--md-sys-color-on-primary)',
               cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 3px 8px rgba(0,0,0,0.2)',
             }}
@@ -209,8 +237,7 @@ export default function LearnView({ session, onExit, onStartPractice }) {
               className="md-state"
               style={{
                 width: '100%', height: 56, borderRadius: 16, border: 'none',
-                background: 'var(--md-sys-color-primary)',
-                color: 'var(--md-sys-color-on-primary)',
+                background: 'var(--md-sys-color-primary)', color: 'var(--md-sys-color-on-primary)',
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 3px 8px rgba(0,0,0,0.2)',
               }}

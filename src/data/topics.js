@@ -1,11 +1,11 @@
 import {
   generateAdd1D1D, generateAdd2D2D, generateAddXY02D, generateAdd3D3D,
-  generateSub1D1D, generateComp10, generateMul10, generateSub2D2D, generateSub3D2D, generateSub3D3D,
+  generateComplements, generateMul10, generateSub2D2D, generateSub3D2D, generateSub3D3D,
   generateMul1D1D, generateMul2D1D, generateMul2D2D, generateMul1D3D,
   generateTables, generateSquares, generateCubes,
 } from '../engine/generators'
 import {
-  buildAdd1D1DPool, buildSub1D1DPool, buildComp10Pool, buildMul101DPool,
+  buildAdd1D1DPool, buildComplementsPool, buildMul101DPool,
   buildMul1D1DPool, buildTablesPool, buildSquaresPool, buildCubesPool,
 } from '../engine/pools'
 
@@ -17,8 +17,7 @@ export const TOPICS = {
   add_3d3d:     { name: 'Three-digit addition',    section: 'addition',       desc: 'e.g. 473 + 628',                 srs: false, generate: generateAdd3D3D },
 
   // Subtraction
-  sub_1d1d:     { name: 'Single digit subtraction', section: 'subtraction',   desc: 'foundations e.g. 9−3, 8−5',      srs: true,  generate: generateSub1D1D,   pool: buildSub1D1DPool() },
-  sub_comp10:   { name: 'Make 10',        section: 'subtraction',   desc: '10−? e.g. 10−7=3',               srs: true,  generate: generateComp10,    pool: buildComp10Pool() },
+  sub_complements: { name: 'Complements', section: 'subtraction', desc: 'make 10, 50, or 100',               srs: true,  isComplements: true, generate: generateComplements, pool: buildComplementsPool() },
   sub_mul10:    { name: 'Tens minus single digit',  section: 'subtraction',   desc: 'e.g. 50−7, 80−3',                srs: true,  generate: generateMul10,     pool: buildMul101DPool() },
   sub_2d2d:     { name: 'Two-digit subtraction',    section: 'subtraction',   desc: 'e.g. 73 − 28',                   srs: false, generate: generateSub2D2D },
   sub_3d2d:     { name: 'Mixed digit subtraction',    section: 'subtraction',   desc: 'e.g. 473 − 58',                  srs: false, generate: generateSub3D2D },

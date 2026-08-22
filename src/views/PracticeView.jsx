@@ -84,6 +84,12 @@ function ExitDialog({ onConfirm, onCancel }) {
 export default function PracticeView({ session, onDone, onExit }) {
   const { topicId, topic, mode, timerMins } = session
   const isDrill = mode === 'drill'
+  const complementTargets = topic.isComplements && session.complementTargets?.length
+    ? session.complementTargets
+    : [10]
+  const practicePool = topic.isComplements
+    ? topic.pool.filter(item => complementTargets.includes(item.target))
+    : topic.pool
 
   /* ── Drill queue state ───────────────────────────────── */
   const [drillQueue, setDrillQueue] = useState(() => {
@@ -120,7 +126,7 @@ export default function PracticeView({ session, onDone, onExit }) {
       return { q: topic.generate(it), it }
     }
     if (topic.srs) {
-      const it = pickSRSItem(topicId, topic.pool)
+      const it = pickSRSItem(topicId, practicePool)
       return { q: topic.generate(it), it }
     }
     return { q: topic.generate(), it: null }

@@ -30,9 +30,17 @@ const TIMER_OPTIONS = [2, 5, 10]
 const DRILL_LIMITS  = [10, 25, 50, 'All']
 
 const DRILL_KEY = 'memoryFactLimit'
+const COMPLEMENT_TARGETS = [10, 50, 100]
+const COMPLEMENT_KEY = 'complementTargets'
 
 export default function TopicDetailSheet({ topic, onClose, onStart }) {
   const isMemory = topic.section === 'memory'
+  const modeOptions = topic.isComplements
+    ? [
+        { ...MODES[0], sub: 'visual tutorial · step by step' },
+        { ...MODES[1], sub: 'direct questions · SRS review' },
+      ]
+    : MODES
 
   const [mode, setMode]           = useState(null)
   const [timerMins, setTimerMins] = useState(null)
@@ -41,10 +49,19 @@ export default function TopicDetailSheet({ topic, onClose, onStart }) {
     if (!saved) return 25
     return saved === 'All' ? 'All' : parseInt(saved)
   })
+  const [selectedTargets, setSelectedTargets] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(COMPLEMENT_KEY) || '[10]')
+      return COMPLEMENT_TARGETS.filter(target => saved.includes(target))
+    } catch {
+      return [10]
+    }
+  })
 
   const canStart = isMemory
     ? true  // drill always ready
-    : mode === 'learn' || (mode === 'practice' && timerMins != null)
+    : (mode === 'learn' || (mode === 'practice' && timerMins != null)) &&
+      (!topic.isComplements || selectedTargets.length > 0)
 
   function handleStart() {
     if (!canStart) return
@@ -53,7 +70,14 @@ export default function TopicDetailSheet({ topic, onClose, onStart }) {
       localStorage.setItem(DRILL_KEY, String(drillLimit))
       onStart({ topicId: topic.id, topic, mode: 'drill', drillLimit: limit })
     } else {
-      onStart({ topicId: topic.id, topic, mode, timerMins })
+      if (topic.isComplements) localStorage.setItem(COMPLEMENT_KEY, JSON.stringify(selectedTargets))
+      onStart({
+        topicId: topic.id,
+        topic,
+        mode,
+        timerMins,
+        complementTargets: topic.isComplements ? selectedTargets : undefined,
+      })
     }
   }
 
@@ -154,8 +178,46 @@ export default function TopicDetailSheet({ topic, onClose, onStart }) {
           ) : (
             /* ── Standard Learn / Practice mode cards ── */
             <>
+              {topic.isComplements && (
+                <div style={{ marginBottom: 20 }}>
+                  <p className="md-label-medium" style={{ color: 'var(--md-sys-color-on-surface-variant)', marginBottom: 10, letterSpacing: '0.05em' }}>
+                    Choose what to practise
+                  </p>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {COMPLEMENT_TARGETS.map(target => {
+                      const checked = selectedTargets.includes(target)
+                      return (
+                        <label
+                          key={target}
+                          className="md-state"
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 12, minHeight: 52,
+                            padding: '8px 12px', borderRadius: 12, cursor: 'pointer',
+                            background: checked ? 'var(--md-sys-color-secondary-container)' : 'var(--md-sys-color-surface-container)',
+                            color: checked ? 'var(--md-sys-color-on-secondary-container)' : 'var(--md-sys-color-on-surface)',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setSelectedTargets(current =>
+                              checked ? current.filter(value => value !== target) : [...current, target].sort((a, b) => a - b)
+                            )}
+                            style={{ width: 20, height: 20, accentColor: 'var(--md-sys-color-primary)' }}
+                          />
+                          <span className="md-title-small" style={{ color: 'inherit' }}>Complements of {target}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                  <p className="md-body-small" style={{ margin: '8px 0 0', color: selectedTargets.length ? 'var(--md-sys-color-on-surface-variant)' : 'var(--md-sys-color-error)' }}>
+                    {selectedTargets.length ? `${selectedTargets.length} target${selectedTargets.length === 1 ? '' : 's'} selected` : 'Select at least one target'}
+                  </p>
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                {MODES.map(m => {
+                {modeOptions.map(m => {
                   const isSelected = mode === m.key
                   return (
                     <button

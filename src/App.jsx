@@ -73,8 +73,9 @@ export default function App() {
   const inResult   = result != null
   const showNav    = !inPractice && !inResult
 
-  /* ── Learn mode for add_2d2d uses step-by-step LearnView ── */
-  const isLearnView = inPractice && session.mode === 'learn' && session.topicId === 'add_2d2d'
+  /* ── Step-by-step LearnView for supported visual tutorials ── */
+  const isLearnView = inPractice && session.mode === 'learn' &&
+    (session.topicId === 'add_2d2d' || session.topic?.isComplements)
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

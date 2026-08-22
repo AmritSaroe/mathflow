@@ -16,6 +16,14 @@ export function buildComp10Pool() {
   return p
 }
 
+export function buildComplementsPool() {
+  const p = []
+  for (const target of [10, 50, 100]) {
+    for (let given = 1; given < target; given++) p.push({ target, given })
+  }
+  return p
+}
+
 export function buildMul101DPool() {
   const p = []
   for (let tens = 2; tens <= 9; tens++) for (let b = 2; b <= 9; b++) p.push({ tens, b })
