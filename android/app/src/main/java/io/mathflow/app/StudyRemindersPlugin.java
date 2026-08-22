@@ -114,15 +114,18 @@ public class StudyRemindersPlugin extends Plugin {
     @PluginMethod
     public void scheduleTest(PluginCall call) {
         Log.i(TAG, "scheduleTest start");
-        Double atValue = call.getDouble("atMs");
-        Integer idValue = call.getInt("id");
+        Object rawAt = call.getData().opt("atMs");
+        Object rawId = call.getData().opt("id");
+        Long atValue = numericLong(rawAt);
+        Integer idValue = numericInt(rawId);
+        Log.i(TAG, "scheduleTest arguments atMsType=" + typeName(rawAt) + " idType=" + typeName(rawId));
         if (atValue == null || idValue == null) {
             call.reject("Test reminder time or ID is missing.");
             Log.e(TAG, "scheduleTest failed: arguments missing");
             return;
         }
         try {
-            StudyReminderScheduler.scheduleTest(getContext(), idValue, atValue.longValue());
+            StudyReminderScheduler.scheduleTest(getContext(), idValue, atValue);
             JSObject result = new JSObject();
             result.put("scheduled", true);
             result.put("exactAlarmUsed", false);
@@ -132,6 +135,30 @@ public class StudyRemindersPlugin extends Plugin {
             Log.e(TAG, "scheduleTest failed", error);
             call.reject("Native test reminder scheduling failed.", error);
         }
+    }
+
+    private Long numericLong(Object value) {
+        if (value instanceof Number) return ((Number) value).longValue();
+        if (value instanceof String) {
+            try {
+                return Long.parseLong((String) value);
+            } catch (NumberFormatException ignored) {}
+        }
+        return null;
+    }
+
+    private Integer numericInt(Object value) {
+        if (value instanceof Number) return ((Number) value).intValue();
+        if (value instanceof String) {
+            try {
+                return Integer.parseInt((String) value);
+            } catch (NumberFormatException ignored) {}
+        }
+        return null;
+    }
+
+    private String typeName(Object value) {
+        return value == null ? "null" : value.getClass().getSimpleName();
     }
 
     @PluginMethod
