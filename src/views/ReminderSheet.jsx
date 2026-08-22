@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   isNativeAndroid,
   loadReminderSettings,
+  requestReminderPermission,
   saveReminderSettings,
   sendTestReminder,
 } from '../native/notifications'
@@ -20,8 +21,9 @@ const DAYS = [
 export default function ReminderSheet({ onClose }) {
   const native = isNativeAndroid()
   const [settings, setSettings] = useState(() => loadReminderSettings())
-  const [busy, setBusy] = useState(false)
+  const [busyAction, setBusyAction] = useState(null)
   const [status, setStatus] = useState('')
+  const busy = busyAction !== null
 
   function toggleDay(day) {
     setSettings(current => ({
@@ -34,7 +36,7 @@ export default function ReminderSheet({ onClose }) {
   }
 
   async function handleSave() {
-    setBusy(true)
+    setBusyAction('save')
     setStatus('')
     try {
       const result = await saveReminderSettings(settings)
@@ -52,22 +54,45 @@ export default function ReminderSheet({ onClose }) {
         ? 'Android notifications took too long. Please try again.'
         : 'Could not save reminder settings. Please try again.')
     } finally {
-      setBusy(false)
+      setBusyAction(null)
     }
   }
 
   async function handleTest() {
-    setBusy(true)
+    setBusyAction('test')
     setStatus('')
     try {
       const result = await sendTestReminder()
-      setStatus(result.ok ? 'Test notification scheduled for now.' : 'Install the Android app to test a notification.')
+      setStatus(result.ok
+        ? 'Test notification scheduled for now.'
+        : result.reason === 'permission-denied'
+          ? 'Notification permission is needed for the test.'
+          : 'Install the Android app to test a notification.')
     } catch (error) {
       setStatus(error?.message?.includes('timed out')
         ? 'The test took too long. Please try again.'
         : 'Could not schedule the test notification. Please try again.')
     } finally {
-      setBusy(false)
+      setBusyAction(null)
+    }
+  }
+
+  async function handleEnabledToggle() {
+    const nextEnabled = !settings.enabled
+    setSettings(current => ({ ...current, enabled: nextEnabled }))
+    setStatus('')
+    if (!nextEnabled || !native) return
+
+    setBusyAction('permission')
+    try {
+      const result = await requestReminderPermission()
+      if (!result.granted) setStatus('Notification permission is needed for reminders.')
+    } catch (error) {
+      setStatus(error?.message?.includes('timed out')
+        ? 'Permission request took too long. Please try again.'
+        : 'Could not request notification permission. Please try again.')
+    } finally {
+      setBusyAction(null)
     }
   }
 
@@ -133,7 +158,7 @@ export default function ReminderSheet({ onClose }) {
                 type="button"
                 className="md-state"
                 aria-pressed={settings.enabled}
-                onClick={() => { setSettings(current => ({ ...current, enabled: !current.enabled })); setStatus('') }}
+                onClick={handleEnabledToggle}
                 style={{
                   minWidth: 74, minHeight: 44, borderRadius: 22, padding: '0 14px', cursor: 'pointer',
                   border: `1px solid ${settings.enabled ? 'var(--md-sys-color-primary)' : 'var(--md-sys-color-outline)'}`,
@@ -199,7 +224,7 @@ export default function ReminderSheet({ onClose }) {
               disabled={busy}
               style={{ flex: 1, minHeight: 52, border: 'none', borderRadius: 26, cursor: busy ? 'wait' : 'pointer', background: 'var(--md-sys-color-primary)', color: 'var(--md-sys-color-on-primary)', font: 'inherit', fontWeight: 600, opacity: busy ? 0.7 : 1 }}
             >
-              {busy ? 'Saving…' : 'Save reminders'}
+              {busyAction === 'save' ? 'Saving…' : 'Save reminders'}
             </button>
             <button
               type="button"
@@ -208,7 +233,7 @@ export default function ReminderSheet({ onClose }) {
               disabled={busy || !native}
               style={{ minHeight: 52, borderRadius: 26, padding: '0 16px', border: '1px solid var(--md-sys-color-outline)', cursor: busy || !native ? 'not-allowed' : 'pointer', background: 'transparent', color: 'var(--md-sys-color-on-surface)', font: 'inherit', opacity: busy || !native ? 0.5 : 1 }}
             >
-              Test
+              {busyAction === 'test' ? 'Testing…' : 'Test'}
             </button>
           </div>
         </motion.section>

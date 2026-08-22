@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 
 const REMINDER_KEY = 'mf-study-reminders'
+const REMINDER_CHANNEL_ID = 'mathflow-reminders'
 const REMINDER_IDS = [1, 2, 3, 4, 5, 6, 7].map(day => 5200 + day)
 
 export const DEFAULT_REMINDER_SETTINGS = {
@@ -50,11 +51,36 @@ function withTimeout(promise, label, timeoutMs = 10000) {
 
 async function clearScheduledReminders(LocalNotifications) {
   try {
-    await LocalNotifications.cancel({
+    await withTimeout(LocalNotifications.cancel({
       notifications: REMINDER_IDS.map(id => ({ id })),
-    })
+    }), 'Clearing study reminders')
   } catch {
     // There may be no notifications to cancel on a fresh install.
+  }
+}
+
+async function ensureReminderChannel(LocalNotifications) {
+  try {
+    await withTimeout(LocalNotifications.createChannel({
+      id: REMINDER_CHANNEL_ID,
+      name: 'Study reminders',
+      description: 'MathFlow practice reminders',
+      importance: 4,
+      visibility: 1,
+      vibration: true,
+    }), 'Creating reminder channel', 5000)
+  } catch {
+    // The channel may already exist on an upgraded install.
+  }
+}
+
+async function checkExactAlarmSetting(LocalNotifications) {
+  try {
+    const result = await withTimeout(LocalNotifications.checkExactNotificationSetting(), 'Checking exact alarm setting', 5000)
+    return result?.value !== false
+  } catch {
+    // Older Android/plugin combinations may not expose this setting.
+    return true
   }
 }
 
@@ -81,14 +107,15 @@ export async function saveReminderSettings(settings) {
   }
 
   const LocalNotifications = await getLocalNotifications()
+  await clearScheduledReminders(LocalNotifications)
+  if (!normalized.enabled) return { ok: true, native: true, scheduled: 0 }
+  if (!normalized.weekdays.length) return { ok: false, native: true, reason: 'no-days' }
+
   const permission = await requestReminderPermission()
   if (!permission.granted) {
     return { ok: false, native: true, reason: 'permission-denied' }
   }
-
-  await clearScheduledReminders(LocalNotifications)
-  if (!normalized.enabled) return { ok: true, native: true, scheduled: 0 }
-  if (!normalized.weekdays.length) return { ok: false, native: true, reason: 'no-days' }
+  await ensureReminderChannel(LocalNotifications)
 
   const [hour, minute] = normalized.time.split(':').map(Number)
   await withTimeout(LocalNotifications.schedule({
@@ -99,8 +126,9 @@ export async function saveReminderSettings(settings) {
       schedule: {
         on: { weekday, hour, minute },
         repeats: true,
-        allowWhileIdle: true,
+        allowWhileIdle: false,
       },
+      channelId: REMINDER_CHANNEL_ID,
       extra: { route: 'practice' },
     })),
   }), 'Scheduling study reminders')
@@ -113,14 +141,17 @@ export async function sendTestReminder() {
   const LocalNotifications = await getLocalNotifications()
   const permission = await requestReminderPermission()
   if (!permission.granted) return { ok: false, native: true, reason: 'permission-denied' }
+  await ensureReminderChannel(LocalNotifications)
+  const exactAlarmsAvailable = await checkExactAlarmSetting(LocalNotifications)
   await withTimeout(LocalNotifications.schedule({
     notifications: [{
       id: 5299,
       title: 'MathFlow test reminder',
       body: 'Your practice reminder is working. Ready for one quick drill?',
-      schedule: { at: new Date(Date.now() + 1500) },
+      schedule: { at: new Date(Date.now() + 5000), allowWhileIdle: true },
+      channelId: REMINDER_CHANNEL_ID,
       extra: { route: 'practice' },
     }],
   }), 'Scheduling test notification')
-  return { ok: true, native: true }
+  return { ok: true, native: true, exactAlarmsAvailable }
 }
