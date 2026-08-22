@@ -1,149 +1,468 @@
 import { Capacitor } from '@capacitor/core'
 
 const REMINDER_KEY = 'mf-study-reminders'
+const RUNTIME_KEY = 'mf-study-reminders-runtime'
 const REMINDER_CHANNEL_ID = 'mathflow-reminders'
-const REMINDER_IDS = [1, 2, 3, 4, 5, 6, 7].map(day => 5200 + day)
+const LEGACY_REMINDER_IDS = [1, 2, 3, 4, 5, 6, 7].map(day => 5200 + day)
+const TEST_NOTIFICATION_ID = 5299
+const SCHEDULE_HORIZON_DAYS = 7
+export const FOLLOWUP_DELAY_MINUTES = 45
+const DEFAULT_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7]
+const DEFAULT_SLOT_ID = 'default-slot'
 
 export const DEFAULT_REMINDER_SETTINGS = {
   enabled: false,
-  time: '18:00',
-  weekdays: [1, 2, 3, 4, 5, 6, 7],
+  slots: [{
+    id: DEFAULT_SLOT_ID,
+    enabled: true,
+    time: '18:00',
+    weekdays: [...DEFAULT_WEEKDAYS],
+  }],
+}
+
+function log(message, data) {
+  if (data === undefined) console.info(`[MathFlow reminders] ${message}`)
+  else console.info(`[MathFlow reminders] ${message}`, data)
+}
+
+function logError(message, error) {
+  console.error(`[MathFlow reminders] ${message}`, error)
 }
 
 export function isNativeAndroid() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 }
 
+export function createReminderSlot(partial = {}) {
+  const now = Date.now().toString(36)
+  const random = Math.random().toString(36).slice(2, 8)
+  return {
+    id: partial.id || `slot-${now}-${random}`,
+    enabled: partial.enabled !== false,
+    time: /^([01]\d|2[0-3]):[0-5]\d$/.test(partial.time) ? partial.time : '18:00',
+    weekdays: normalizeWeekdays(partial.weekdays),
+  }
+}
+
+function normalizeWeekdays(value) {
+  if (value === undefined || value === null) return [...DEFAULT_WEEKDAYS]
+  return [...new Set((Array.isArray(value) ? value : []).map(Number))]
+    .filter(day => day >= 1 && day <= 7)
+    .sort((a, b) => a - b)
+}
+
+function cloneDefaultSettings() {
+  return {
+    enabled: DEFAULT_REMINDER_SETTINGS.enabled,
+    slots: DEFAULT_REMINDER_SETTINGS.slots.map(slot => ({ ...slot, weekdays: [...slot.weekdays] })),
+  }
+}
+
+export function normalizeReminderSettings(stored) {
+  if (!stored || typeof stored !== 'object') return cloneDefaultSettings()
+
+  // Migrate the previous single-time shape without losing the user's settings.
+  if (!Array.isArray(stored.slots)) {
+    if (stored.time || stored.weekdays || typeof stored.enabled === 'boolean') {
+      return {
+        enabled: Boolean(stored.enabled),
+        slots: [createReminderSlot({
+          id: DEFAULT_SLOT_ID,
+          enabled: true,
+          time: stored.time || '18:00',
+          weekdays: stored.weekdays,
+        })],
+      }
+    }
+    return cloneDefaultSettings()
+  }
+
+  const seen = new Set()
+  const slots = stored.slots.map(slot => {
+    const normalized = createReminderSlot(slot || {})
+    if (seen.has(normalized.id)) normalized.id = createReminderSlot().id
+    seen.add(normalized.id)
+    return normalized
+  })
+
+  return {
+    enabled: Boolean(stored.enabled),
+    slots,
+  }
+}
+
 export function loadReminderSettings() {
   try {
     const stored = JSON.parse(localStorage.getItem(REMINDER_KEY) || 'null')
-    return {
-      ...DEFAULT_REMINDER_SETTINGS,
-      ...(stored || {}),
-      weekdays: Array.isArray(stored?.weekdays) && stored.weekdays.length
-        ? stored.weekdays.map(Number).filter(day => day >= 1 && day <= 7).sort((a, b) => a - b)
-        : DEFAULT_REMINDER_SETTINGS.weekdays,
-    }
-  } catch {
-    return DEFAULT_REMINDER_SETTINGS
+    const normalized = normalizeReminderSettings(stored)
+    // Persist the migration immediately so it is stable across reloads.
+    if (stored && !Array.isArray(stored.slots)) saveReminderSettingsLocally(normalized)
+    return normalized
+  } catch (error) {
+    logError('Could not load reminder settings; using defaults.', error)
+    return cloneDefaultSettings()
   }
 }
 
 function saveReminderSettingsLocally(settings) {
   try {
     localStorage.setItem(REMINDER_KEY, JSON.stringify(settings))
-  } catch {
-    // Local storage is best-effort; native scheduling remains authoritative.
+  } catch (error) {
+    logError('Could not persist reminder settings locally.', error)
   }
 }
 
+function loadRuntime() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(RUNTIME_KEY) || 'null')
+    return {
+      practicedDate: stored?.practicedDate || null,
+      entries: Array.isArray(stored?.entries) ? stored.entries : [],
+    }
+  } catch {
+    return { practicedDate: null, entries: [] }
+  }
+}
+
+function saveRuntime(runtime) {
+  try {
+    localStorage.setItem(RUNTIME_KEY, JSON.stringify(runtime))
+  } catch (error) {
+    logError('Could not persist reminder runtime state.', error)
+  }
+}
+
+function dateKey(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function dateAtOffset(offset) {
+  const date = new Date()
+  date.setHours(0, 0, 0, 0)
+  date.setDate(date.getDate() + offset)
+  return date
+}
+
+function localDateAt(date, time) {
+  const [hour, minute] = time.split(':').map(Number)
+  const result = new Date(date)
+  result.setHours(hour, minute, 0, 0)
+  return result
+}
+
+function stableHash(value) {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function notificationId(slotId, day, variant) {
+  // A stable, positive 32-bit ID derived from slot/date/variant.
+  const hash = stableHash(`${slotId}:${day}:${variant}`) % 100000000
+  return 100000 + hash
+}
+
 async function getLocalNotifications() {
+  log('Loading Capacitor LocalNotifications bridge.')
   return (await import('@capacitor/local-notifications')).LocalNotifications
 }
 
 function withTimeout(promise, label, timeoutMs = 10000) {
   let timer
   const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs)
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs)
   })
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
 }
 
-async function clearScheduledReminders(LocalNotifications) {
+async function nativeCall(label, callback, timeoutMs = 10000) {
+  log(`${label}: start`)
   try {
-    await withTimeout(LocalNotifications.cancel({
-      notifications: REMINDER_IDS.map(id => ({ id })),
-    }), 'Clearing study reminders')
-  } catch {
-    // There may be no notifications to cancel on a fresh install.
+    const result = await withTimeout(callback(), label, timeoutMs)
+    log(`${label}: resolved`, result)
+    return result
+  } catch (error) {
+    logError(`${label}: failed`, error)
+    throw error
+  }
+}
+
+async function clearScheduledReminders(LocalNotifications) {
+  const runtime = loadRuntime()
+  const ids = [...new Set([
+    ...LEGACY_REMINDER_IDS,
+    TEST_NOTIFICATION_ID,
+    ...runtime.entries.flatMap(entry => [entry.primaryId, entry.followupId]),
+  ].filter(Number.isInteger))]
+  if (!ids.length) return
+
+  try {
+    await nativeCall('Clearing existing reminder notifications', () => LocalNotifications.cancel({
+      notifications: ids.map(id => ({ id })),
+    }))
+  } catch (error) {
+    // A fresh install may have no stored notification records. Continue scheduling.
+    logError('Could not clear one or more old reminder notifications; continuing.', error)
   }
 }
 
 async function ensureReminderChannel(LocalNotifications) {
   try {
-    await withTimeout(LocalNotifications.createChannel({
+    await nativeCall('Creating reminder notification channel', () => LocalNotifications.createChannel({
       id: REMINDER_CHANNEL_ID,
       name: 'Study reminders',
       description: 'MathFlow practice reminders',
       importance: 4,
       visibility: 1,
       vibration: true,
-    }), 'Creating reminder channel', 5000)
-  } catch {
+    }), 5000)
+  } catch (error) {
     // The channel may already exist on an upgraded install.
+    logError('Reminder channel setup returned an error; Android may already have the channel.', error)
   }
 }
 
 export async function requestReminderPermission() {
   if (!isNativeAndroid()) return { granted: false, native: false }
   const LocalNotifications = await getLocalNotifications()
-  let permission = await withTimeout(LocalNotifications.checkPermissions(), 'Checking notification permission')
+  let permission = await nativeCall('Checking notification permission', () => LocalNotifications.checkPermissions())
   if (permission.display !== 'granted') {
-    permission = await withTimeout(LocalNotifications.requestPermissions(), 'Requesting notification permission')
+    permission = await nativeCall('Requesting notification permission', () => LocalNotifications.requestPermissions())
   }
   return { granted: permission.display === 'granted', native: true }
 }
 
-export async function saveReminderSettings(settings) {
-  const normalized = {
-    ...DEFAULT_REMINDER_SETTINGS,
-    ...settings,
-    weekdays: [...new Set((settings.weekdays || []).map(Number))].filter(day => day >= 1 && day <= 7).sort((a, b) => a - b),
+function buildScheduleEntries(settings, now = new Date()) {
+  const runtime = loadRuntime()
+  const practicedToday = runtime.practicedDate === dateKey(now)
+  const entries = []
+
+  for (let offset = 0; offset < SCHEDULE_HORIZON_DAYS; offset += 1) {
+    // Once a drill is completed, suppress the rest of today only. Future dates remain active.
+    if (offset === 0 && practicedToday) continue
+    const date = dateAtOffset(offset)
+    const weekday = date.getDay() + 1
+    const key = dateKey(date)
+
+    for (const slot of settings.slots) {
+      if (!slot.enabled || !slot.weekdays.includes(weekday)) continue
+      const primaryAt = localDateAt(date, slot.time)
+      const followupAt = new Date(primaryAt.getTime() + FOLLOWUP_DELAY_MINUTES * 60 * 1000)
+      if (primaryAt <= now) continue
+
+      const primaryId = notificationId(slot.id, key, 0)
+      const followupId = notificationId(slot.id, key, 1)
+      entries.push({
+        dateKey: key,
+        slotId: slot.id,
+        primaryId,
+        followupId,
+        primaryAt: primaryAt.toISOString(),
+        followupAt: followupAt.toISOString(),
+        notifications: [
+          {
+            id: primaryId,
+            title: 'MathFlow practice time',
+            body: 'A quick maths drill is waiting for you.',
+            schedule: { at: primaryAt, allowWhileIdle: false, isExactNotification: false },
+            channelId: REMINDER_CHANNEL_ID,
+            smallIcon: 'ic_stat_mathflow',
+            extra: { route: 'practice', kind: 'primary', slotId: slot.id, dateKey: key },
+          },
+          {
+            id: followupId,
+            title: 'MathFlow follow-up',
+            body: 'Still have a minute for one quick maths drill?',
+            schedule: { at: followupAt, allowWhileIdle: false, isExactNotification: false },
+            channelId: REMINDER_CHANNEL_ID,
+            smallIcon: 'ic_stat_mathflow',
+            extra: { route: 'practice', kind: 'followup', slotId: slot.id, dateKey: key },
+          },
+        ],
+      })
+    }
   }
+  return entries
+}
+
+export async function saveReminderSettings(settings) {
+  const normalized = normalizeReminderSettings(settings)
   saveReminderSettingsLocally(normalized)
+  log('Saving reminder settings', normalized)
 
   if (!isNativeAndroid()) {
-    return { ok: false, native: false, reason: 'native-only' }
+    return { ok: true, native: false, scheduled: 0, slots: normalized.slots.length }
   }
 
   const LocalNotifications = await getLocalNotifications()
   await clearScheduledReminders(LocalNotifications)
-  if (!normalized.enabled) return { ok: true, native: true, scheduled: 0 }
-  if (!normalized.weekdays.length) return { ok: false, native: true, reason: 'no-days' }
+  const runtime = loadRuntime()
+
+  if (!normalized.enabled) {
+    saveRuntime({ ...runtime, entries: [] })
+    return { ok: true, native: true, scheduled: 0, slots: normalized.slots.length }
+  }
+
+  const activeSlots = normalized.slots.filter(slot => slot.enabled && slot.weekdays.length)
+  if (!activeSlots.length) {
+    saveRuntime({ ...runtime, entries: [] })
+    return { ok: true, native: true, scheduled: 0, slots: normalized.slots.length }
+  }
 
   const permission = await requestReminderPermission()
-  if (!permission.granted) {
-    return { ok: false, native: true, reason: 'permission-denied' }
-  }
+  if (!permission.granted) return { ok: false, native: true, reason: 'permission-denied' }
   await ensureReminderChannel(LocalNotifications)
 
-  const [hour, minute] = normalized.time.split(':').map(Number)
-  await withTimeout(LocalNotifications.schedule({
-    notifications: normalized.weekdays.map(weekday => ({
-      id: 5200 + weekday,
-      title: 'MathFlow practice time',
-      body: 'A quick maths drill is waiting for you.',
-      schedule: {
-        on: { weekday, hour, minute },
-        repeats: true,
-        allowWhileIdle: false,
-        isExactNotification: false,
-      },
-      channelId: REMINDER_CHANNEL_ID,
-      extra: { route: 'practice' },
-    })),
-  }), 'Scheduling study reminders')
+  const scheduleEntries = buildScheduleEntries(normalized)
+  const notifications = scheduleEntries.flatMap(entry => entry.notifications)
+  if (!notifications.length) {
+    saveRuntime({ ...runtime, entries: [] })
+    return { ok: true, native: true, scheduled: 0, slots: normalized.slots.length }
+  }
 
-  return { ok: true, native: true, scheduled: normalized.weekdays.length }
+  await nativeCall('Scheduling reminder slots', () => LocalNotifications.schedule({ notifications }))
+  const nextRuntime = {
+    practicedDate: runtime.practicedDate,
+    entries: scheduleEntries.map(({ notifications: _notifications, ...entry }) => entry),
+  }
+  saveRuntime(nextRuntime)
+  return {
+    ok: true,
+    native: true,
+    scheduled: scheduleEntries.length,
+    slots: normalized.slots.length,
+    notifications: notifications.length,
+  }
+}
+
+async function cancelFollowupIds(LocalNotifications, ids, reason) {
+  const uniqueIds = [...new Set(ids.filter(Number.isInteger))]
+  if (!uniqueIds.length) return 0
+  try {
+    await nativeCall(reason, () => LocalNotifications.cancel({
+      notifications: uniqueIds.map(id => ({ id })),
+    }))
+  } catch (error) {
+    logError(`${reason}: failed`, error)
+    return 0
+  }
+  return uniqueIds.length
+}
+
+async function cancelElapsedFollowups(LocalNotifications) {
+  const now = Date.now()
+  const runtime = loadRuntime()
+  const due = runtime.entries.filter(entry => {
+    const primaryAt = Date.parse(entry.primaryAt)
+    const followupAt = Date.parse(entry.followupAt)
+    return Number.isFinite(primaryAt) && Number.isFinite(followupAt) && primaryAt <= now && followupAt > now && Number.isInteger(entry.followupId)
+  })
+  if (!due.length) return 0
+
+  const cancelled = await cancelFollowupIds(LocalNotifications, due.map(entry => entry.followupId), 'Cancelling follow-ups after app open')
+  if (cancelled) {
+    const ids = new Set(due.map(entry => entry.followupId))
+    saveRuntime({ ...runtime, entries: runtime.entries.map(entry => ids.has(entry.followupId) ? { ...entry, followupId: null } : entry) })
+  }
+  return cancelled
+}
+
+async function cancelFollowupForNotification(notification) {
+  const slotId = notification?.extra?.slotId
+  const reminderDate = notification?.extra?.dateKey
+  if (!slotId || !reminderDate || !isNativeAndroid()) return
+  const runtime = loadRuntime()
+  const entry = runtime.entries.find(item => item.slotId === slotId && item.dateKey === reminderDate && Number.isInteger(item.followupId))
+  if (!entry) return
+  const LocalNotifications = await getLocalNotifications()
+  const cancelled = await cancelFollowupIds(LocalNotifications, [entry.followupId], 'Cancelling follow-up after primary reminder')
+  if (cancelled) saveRuntime({ ...runtime, entries: runtime.entries.map(item => item === entry ? { ...item, followupId: null } : item) })
+}
+
+let reminderLifecycleInitialized = false
+
+export async function initReminderLifecycle() {
+  if (!isNativeAndroid() || reminderLifecycleInitialized) return
+  reminderLifecycleInitialized = true
+  const LocalNotifications = await getLocalNotifications()
+  await nativeCall('Registering reminder delivery listener', () => LocalNotifications.addListener('localNotificationReceived', notification => {
+    if (notification?.extra?.kind === 'primary') void cancelFollowupForNotification(notification)
+  }), 5000)
+
+  try {
+    const { App } = await import('@capacitor/app')
+    await nativeCall('Registering app foreground listener', () => App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) void cancelElapsedFollowups(LocalNotifications)
+    }), 5000)
+  } catch (error) {
+    logError('App foreground listener unavailable; reminder cleanup will run on next save.', error)
+  }
+  await cancelElapsedFollowups(LocalNotifications)
 }
 
 export async function sendTestReminder() {
-  if (!isNativeAndroid()) return { ok: false, native: false }
+  if (!isNativeAndroid()) return { ok: false, native: false, reason: 'native-only' }
   const LocalNotifications = await getLocalNotifications()
   const permission = await requestReminderPermission()
   if (!permission.granted) return { ok: false, native: true, reason: 'permission-denied' }
   await ensureReminderChannel(LocalNotifications)
-  await withTimeout(LocalNotifications.schedule({
+
+  const at = new Date(Date.now() + 5000)
+  await nativeCall('Scheduling test notification', () => LocalNotifications.schedule({
     notifications: [{
-      id: 5299,
+      id: TEST_NOTIFICATION_ID,
       title: 'MathFlow test reminder',
       body: 'Your practice reminder is working. Ready for one quick drill?',
-      schedule: { at: new Date(Date.now() + 5000), allowWhileIdle: true, isExactNotification: false },
+      schedule: { at, allowWhileIdle: false, isExactNotification: false },
       channelId: REMINDER_CHANNEL_ID,
-      extra: { route: 'practice' },
+      smallIcon: 'ic_stat_mathflow',
+      extra: { route: 'practice', kind: 'test' },
     }],
-  }), 'Scheduling test notification')
-  const pending = await withTimeout(LocalNotifications.getPending(), 'Checking scheduled test notification', 5000)
-  const testIsPending = pending?.notifications?.some(notification => notification.id === 5299)
+  }))
+
+  const pending = await nativeCall('Verifying scheduled test notification', () => LocalNotifications.getPending(), 5000)
+  const testIsPending = pending?.notifications?.some(notification => notification.id === TEST_NOTIFICATION_ID)
+  log('Test notification pending status', { testIsPending, pendingCount: pending?.notifications?.length })
   return { ok: testIsPending !== false, native: true, pending: testIsPending !== false }
+}
+
+export async function notifyPracticeCompleted() {
+  const runtime = loadRuntime()
+  const today = dateKey(new Date())
+  saveRuntime({
+    practicedDate: today,
+    entries: runtime.entries.filter(entry => entry.dateKey !== today),
+  })
+
+  if (!isNativeAndroid()) return { ok: true, native: false, cancelled: 0 }
+  const ids = runtime.entries
+    .filter(entry => entry.dateKey === today)
+    .flatMap(entry => [entry.primaryId, entry.followupId])
+    .filter(Number.isInteger)
+  if (!ids.length) return { ok: true, native: true, cancelled: 0 }
+
+  const LocalNotifications = await getLocalNotifications()
+  try {
+    await nativeCall('Cancelling remaining reminders for today', () => LocalNotifications.cancel({
+      notifications: [...new Set(ids)].map(id => ({ id })),
+    }))
+  } catch (error) {
+    logError('Could not cancel every remaining reminder for today.', error)
+    return { ok: false, native: true, cancelled: 0, error }
+  }
+  return { ok: true, native: true, cancelled: ids.length }
+}
+
+export function refreshReminderRuntime() {
+  const runtime = loadRuntime()
+  const today = dateKey(new Date())
+  const entries = runtime.entries.filter(entry => entry.dateKey >= today)
+  if (entries.length !== runtime.entries.length) saveRuntime({ ...runtime, entries })
+  return { practicedDate: runtime.practicedDate, entries: entries.length }
 }

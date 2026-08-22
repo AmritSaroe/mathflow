@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import NavBar from './components/NavBar'
 import UpdatePrompt from './components/UpdatePrompt'
@@ -9,6 +9,7 @@ import ResultView from './views/ResultView'
 import LearnView from './views/LearnView'
 import TopicDetailSheet from './views/TopicDetailSheet'
 import ReminderSheet from './views/ReminderSheet'
+import { initReminderLifecycle } from './native/notifications'
 import { initTheme, applyTheme } from './theme/material'
 import { TOPICS } from './data/topics'
 
@@ -28,6 +29,10 @@ export default function App() {
   const [sessionId, setSessionId] = useState(0)
   const [result, setResult]       = useState(null)
   const [lastTopicId, setLastTopicId] = useState(() => localStorage.getItem('mf-lastTopicId'))
+
+  useEffect(() => {
+    initReminderLifecycle().catch(error => console.error('[MathFlow reminders] lifecycle init failed', error))
+  }, [])
 
   /* ── Theme toggle ──────────────────────────────────── */
   function toggleTheme() {

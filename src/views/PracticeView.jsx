@@ -2,6 +2,7 @@ import { useEffect, useReducer, useRef, useState } from 'react'
 import { motion, useAnimation, AnimatePresence } from 'framer-motion'
 import { pickSRSItem, recordSRS } from '../engine/srs'
 import { recordActivity } from '../engine/storage'
+import { notifyPracticeCompleted } from '../native/notifications'
 import NumPad from '../components/NumPad'
 
 /* ── Session reducer ───────────────────────────────────── */
@@ -172,6 +173,7 @@ export default function PracticeView({ session, onDone, onExit }) {
   useEffect(() => {
     if (st.status === 'done') {
       recordActivity(st.attempted, st.correct)
+      void notifyPracticeCompleted().catch(error => console.error('[MathFlow reminders] practice completion cleanup failed', error))
       onDone({ correct: st.correct, attempted: st.attempted })
     }
   }, [st.status]) // eslint-disable-line
