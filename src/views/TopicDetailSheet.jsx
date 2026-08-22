@@ -181,32 +181,33 @@ export default function TopicDetailSheet({ topic, onClose, onStart }) {
               {topic.isComplements && (
                 <div style={{ marginBottom: 20 }}>
                   <p className="md-label-medium" style={{ color: 'var(--md-sys-color-on-surface-variant)', marginBottom: 10, letterSpacing: '0.05em' }}>
-                    Choose what to practise
+                    Choose targets
                   </p>
-                  <div style={{ display: 'grid', gap: 8 }}>
+                  <div role="group" aria-label="Complement targets" style={{ display: 'flex', gap: 8, width: '100%' }}>
                     {COMPLEMENT_TARGETS.map(target => {
                       const checked = selectedTargets.includes(target)
                       return (
-                        <label
+                        <button
                           key={target}
+                          type="button"
                           className="md-state"
+                          aria-pressed={checked}
+                          aria-label={`Complements of ${target}${checked ? ', selected' : ''}`}
+                          onClick={() => setSelectedTargets(current =>
+                            checked ? current.filter(value => value !== target) : [...current, target].sort((a, b) => a - b)
+                          )}
                           style={{
-                            display: 'flex', alignItems: 'center', gap: 12, minHeight: 52,
-                            padding: '8px 12px', borderRadius: 12, cursor: 'pointer',
+                            flex: '1 1 0', minWidth: 0, minHeight: 48, padding: '10px 8px',
+                            borderRadius: 24, cursor: 'pointer',
+                            border: `1px solid ${checked ? 'var(--md-sys-color-primary)' : 'var(--md-sys-color-outline)'}`,
                             background: checked ? 'var(--md-sys-color-secondary-container)' : 'var(--md-sys-color-surface-container)',
-                            color: checked ? 'var(--md-sys-color-on-secondary-container)' : 'var(--md-sys-color-on-surface)',
+                            color: checked ? 'var(--md-sys-color-on-secondary-container)' : 'var(--md-sys-color-on-surface-variant)',
+                            fontFamily: "'DM Mono', monospace", fontSize: 18, fontWeight: 400,
+                            transition: 'background 150ms, border-color 150ms, color 150ms',
                           }}
                         >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => setSelectedTargets(current =>
-                              checked ? current.filter(value => value !== target) : [...current, target].sort((a, b) => a - b)
-                            )}
-                            style={{ width: 20, height: 20, accentColor: 'var(--md-sys-color-primary)' }}
-                          />
-                          <span className="md-title-small" style={{ color: 'inherit' }}>Complements of {target}</span>
-                        </label>
+                          {target}
+                        </button>
                       )
                     })}
                   </div>
