@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MathFlow</string>
+    <string name="title_activity_main">MathFlow</string>
+    <string name="package_name">io.mathflow.app</string>
+    <string name="custom_url_scheme">io.mathflow.app</string>
+</resources>

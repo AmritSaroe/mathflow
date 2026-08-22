@@ -1,0 +1,5 @@
+{
+  "appId": "io.mathflow.app",
+  "appName": "MathFlow",
+  "webDir": "dist"
+}

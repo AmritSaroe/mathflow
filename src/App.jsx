@@ -8,6 +8,7 @@ import PracticeView from './views/PracticeView'
 import ResultView from './views/ResultView'
 import LearnView from './views/LearnView'
 import TopicDetailSheet from './views/TopicDetailSheet'
+import ReminderSheet from './views/ReminderSheet'
 import { initTheme, applyTheme } from './theme/material'
 import { TOPICS } from './data/topics'
 
@@ -22,6 +23,7 @@ export default function App() {
   const [tab, setTab]             = useState('home')
   const [theme, setTheme]         = useState(() => initTheme())
   const [selectedTopic, setTopic] = useState(null)
+  const [remindersOpen, setRemindersOpen] = useState(false)
   const [session, setSession]     = useState(null)
   const [sessionId, setSessionId] = useState(0)
   const [result, setResult]       = useState(null)
@@ -92,6 +94,7 @@ export default function App() {
                 theme={theme}
                 onToggleTheme={toggleTheme}
                 onSelectTopic={setTopic}
+                onOpenReminders={() => setRemindersOpen(true)}
               />
             </motion.div>
           )}
@@ -213,6 +216,13 @@ export default function App() {
 
       {/* ── PWA Update Snackbar ── */}
       <UpdatePrompt />
+
+      {/* ── Study reminders bottom sheet ── */}
+      <AnimatePresence>
+        {showNav && remindersOpen && (
+          <ReminderSheet onClose={() => setRemindersOpen(false)} />
+        )}
+      </AnimatePresence>
 
       {/* ── Topic Detail Bottom Sheet ── */}
       <AnimatePresence>
