@@ -86,25 +86,6 @@ function TopicCard({ topic, dueCount, onSelect }) {
   )
 }
 
-/* ── M3 Sun / Moon icons ───────────────────────────── */
-function SunIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-      <circle cx="11" cy="11" r="4" stroke="currentColor" strokeWidth="1.8"/>
-      <path d="M11 3v2M11 17v2M3 11h2M17 11h2M5.05 5.05l1.41 1.41M15.54 15.54l1.41 1.41M15.54 6.46l-1.41 1.41M6.46 15.54l-1.41 1.41"
-            stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-    </svg>
-  )
-}
-
-function MoonIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-      <path d="M19 13.5A8 8 0 018.5 3a8 8 0 100 16A8.002 8.002 0 0019 13.5z"
-            stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-    </svg>
-  )
-}
 
 function ChevronDown() {
   return (
@@ -115,7 +96,7 @@ function ChevronDown() {
 }
 
 /* ── Home view ─────────────────────────────────────── */
-export default function HomeView({ theme, onToggleTheme, onSelectTopic }) {
+export default function HomeView({ onSelectTopic }) {
   const [openKey, setOpenKey] = useState(null)
 
   /* Compute per-topic due counts once on mount */
@@ -185,23 +166,6 @@ export default function HomeView({ theme, onToggleTheme, onSelectTopic }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {/* Theme toggle — M3 icon button */}
-          <button
-            onClick={onToggleTheme}
-            className="md-state"
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            style={{
-              width: 48, height: 48,
-              borderRadius: 24,
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--md-sys-color-on-surface-variant)',
-            }}
-          >
-            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-          </button>
         </div>
       </header>
 

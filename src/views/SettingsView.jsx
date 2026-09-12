@@ -15,19 +15,6 @@ function ChevronRight() {
   )
 }
 
-function ThemeIcon({ dark }) {
-  return dark ? (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-      <path d="M18.5 13.5A7.5 7.5 0 0 1 8.5 3.2 7.5 7.5 0 1 0 18.5 13.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-    </svg>
-  ) : (
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-      <circle cx="11" cy="11" r="3.7" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M11 2.5v2M11 17.5v2M2.5 11h2M17.5 11h2M5 5l1.5 1.5M15.5 15.5L17 17M17 5l-1.5 1.5M6.5 15.5L5 17" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  )
-}
-
 function BellIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
@@ -51,11 +38,10 @@ function reminderSummary(settings) {
   return `On · ${times.join(', ')}${extra}`
 }
 
-export default function SettingsView({ theme, onToggleTheme, onOpenReminders, remindersRevision }) {
+export default function SettingsView({ onOpenReminders, remindersRevision }) {
   const [settings, setSettings] = useState(() => loadReminderSettings())
   const [diagnosticEntries, setDiagnosticEntries] = useState(() => getReminderDiagnostics())
   const [copyState, setCopyState] = useState('')
-  const dark = theme === 'dark'
 
   function refresh() {
     setSettings(loadReminderSettings())
@@ -99,21 +85,6 @@ export default function SettingsView({ theme, onToggleTheme, onOpenReminders, re
             <span className="md-body-medium" style={{ display: 'block', marginTop: 3, color: 'var(--md-sys-color-on-surface-variant)' }}>{reminderSummary(settings)}</span>
           </span>
           <span style={{ color: 'var(--md-sys-color-on-surface-variant)', display: 'flex' }}><ChevronRight /></span>
-        </button>
-
-        <p className="md-label-large" style={{ margin: '28px 0 8px 4px', color: 'var(--md-sys-color-on-surface-variant)' }}>Appearance</p>
-        <button
-          type="button"
-          className="md-state"
-          onClick={onToggleTheme}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: 16, border: 'none', borderRadius: 16, background: 'var(--md-sys-color-surface-container)', color: 'var(--md-sys-color-on-surface)', textAlign: 'left', cursor: 'pointer' }}
-        >
-          <span style={{ width: 42, height: 42, borderRadius: 21, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--md-sys-color-surface-container-high)', color: 'var(--md-sys-color-on-surface-variant)', flexShrink: 0 }}><ThemeIcon dark={dark} /></span>
-          <span style={{ flex: 1 }}>
-            <span className="md-title-medium" style={{ display: 'block' }}>Theme</span>
-            <span className="md-body-medium" style={{ display: 'block', marginTop: 3, color: 'var(--md-sys-color-on-surface-variant)' }}>{dark ? 'Dark mode' : 'Light mode'}</span>
-          </span>
-          <span className="md-label-large" style={{ color: 'var(--md-sys-color-primary)' }}>Change</span>
         </button>
 
         <p className="md-label-large" style={{ margin: '28px 0 8px 4px', color: 'var(--md-sys-color-on-surface-variant)' }}>Help and troubleshooting</p>

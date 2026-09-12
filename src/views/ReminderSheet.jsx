@@ -7,10 +7,6 @@ import {
   requestReminderPermission,
   saveReminderSettings,
   sendTestReminder,
-  getReminderDiagnostics,
-  getReminderDiagnosticsText,
-  copyReminderDiagnostics,
-  clearReminderDiagnostics,
   recordReminderDiagnostic,
 } from '../native/notifications'
 
@@ -44,26 +40,7 @@ export default function ReminderSheet({ onClose }) {
   const [settings, setSettings] = useState(() => loadReminderSettings())
   const [busyAction, setBusyAction] = useState(null)
   const [status, setStatus] = useState('')
-  const [diagnosticEntries, setDiagnosticEntries] = useState(() => getReminderDiagnostics())
-  const [copyState, setCopyState] = useState('')
   const busy = busyAction !== null
-
-  function refreshDiagnostics() {
-    setDiagnosticEntries(getReminderDiagnostics())
-  }
-
-  async function handleCopyDiagnostics() {
-    setCopyState('Copying…')
-    const result = await copyReminderDiagnostics()
-    refreshDiagnostics()
-    setCopyState(result.ok ? 'Copied' : 'Copy failed — long-press the log to copy it')
-  }
-
-  function handleClearDiagnostics() {
-    clearReminderDiagnostics()
-    setDiagnosticEntries([])
-    setCopyState('')
-  }
 
   function updateSlot(slotId, patch) {
     setSettings(current => ({
@@ -124,7 +101,6 @@ export default function ReminderSheet({ onClose }) {
         : 'Could not save reminder settings. Please try again.')
     } finally {
       setBusyAction(null)
-      refreshDiagnostics()
     }
   }
 
@@ -147,7 +123,6 @@ export default function ReminderSheet({ onClose }) {
         : 'Could not schedule the test notification. Please try again.')
     } finally {
       setBusyAction(null)
-      refreshDiagnostics()
     }
   }
 
@@ -168,7 +143,6 @@ export default function ReminderSheet({ onClose }) {
         : 'Could not request notification permission. Please try again.')
     } finally {
       setBusyAction(null)
-      refreshDiagnostics()
     }
   }
 
@@ -341,29 +315,6 @@ export default function ReminderSheet({ onClose }) {
               {status}
             </p>
           )}
-
-          <div style={{ marginTop: 18, padding: 14, borderRadius: 16, background: 'var(--md-sys-color-surface-container-high)', border: '1px solid var(--md-sys-color-outline-variant)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <div>
-                <p className="md-title-small" style={{ margin: 0 }}>Troubleshooting log</p>
-                <p className="md-body-small" style={{ margin: '4px 0 0', color: 'var(--md-sys-color-on-surface-variant)' }}>
-                  {diagnosticEntries.length} event{diagnosticEntries.length === 1 ? '' : 's'} saved on this device.
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" className="md-state" onClick={handleCopyDiagnostics} disabled={busy} style={{ minHeight: 36, borderRadius: 18, padding: '0 12px', border: '1px solid var(--md-sys-color-primary)', background: 'var(--md-sys-color-secondary-container)', color: 'var(--md-sys-color-on-secondary-container)', font: 'inherit' }}>
-                  {copyState || 'Copy log'}
-                </button>
-                <button type="button" className="md-state" onClick={handleClearDiagnostics} disabled={busy || !diagnosticEntries.length} style={{ minHeight: 36, borderRadius: 18, padding: '0 12px', border: '1px solid var(--md-sys-color-outline)', background: 'transparent', color: 'var(--md-sys-color-on-surface-variant)', font: 'inherit' }}>
-                  Clear
-                </button>
-              </div>
-            </div>
-            <details style={{ marginTop: 10 }}>
-              <summary className="md-label-large" style={{ cursor: 'pointer', color: 'var(--md-sys-color-primary)' }}>Show log</summary>
-              <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 220, overflowY: 'auto', margin: '10px 0 0', padding: 10, borderRadius: 10, background: 'var(--md-sys-color-surface)', color: 'var(--md-sys-color-on-surface-variant)', fontSize: 11, lineHeight: 1.45 }}>{getReminderDiagnosticsText()}</pre>
-            </details>
-          </div>
 
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
             <button
