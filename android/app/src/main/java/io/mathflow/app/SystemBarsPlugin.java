@@ -17,6 +17,10 @@ public class SystemBarsPlugin extends Plugin {
         String color = call.getString("color", "#FFFBFE");
         boolean darkIcons = call.getBoolean("darkIcons", true);
         try {
+            if (getActivity() == null) {
+                call.reject("Activity is not ready for system-bar styling.");
+                return;
+            }
             int parsedColor = Color.parseColor(color);
             Window window = getActivity().getWindow();
             window.setStatusBarColor(parsedColor);
@@ -34,8 +38,9 @@ public class SystemBarsPlugin extends Plugin {
             }
             window.getDecorView().setSystemUiVisibility(flags);
             call.resolve();
-        } catch (IllegalArgumentException error) {
-            call.reject("Invalid system bar color.", error);
+        } catch (Exception error) {
+            // System-bar styling is cosmetic; do not let it crash the activity.
+            call.reject("System-bar styling failed.", error);
         }
     }
 }

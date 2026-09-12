@@ -77,8 +77,9 @@ export function applyTheme(isDark) {
     hexFromArgb(surfaceAtElevation(scheme, 0.14)))
 
   root.setAttribute('data-theme', isDark ? 'dark' : 'light')
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', hexFromArgb(scheme.background))
-  applySystemBars(hexFromArgb(scheme.background), !isDark)
+  const background = hexFromArgb(scheme.background)
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', background)
+  try { applySystemBars(background, !isDark) } catch {}
 }
 
 // Blend surface with primary at a given opacity (M3 elevation tints)
