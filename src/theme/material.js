@@ -4,6 +4,7 @@ import {
   hexFromArgb,
   TonalPalette,
 } from '@material/material-color-utilities'
+import { applySystemBars } from '../native/systemBars'
 
 // M3 baseline purple seed — the only hardcoded hex in the codebase
 const SEED = '#6750a4'
@@ -46,8 +47,8 @@ const ROLES = {
   inversePrimary:       'inverse-primary',
 }
 
-export function applyTheme() {
-  const scheme = _theme.schemes.light
+export function applyTheme(isDark) {
+  const scheme = isDark ? _theme.schemes.dark : _theme.schemes.light
   const root = document.documentElement
 
   for (const [prop, cssName] of Object.entries(ROLES)) {
@@ -58,8 +59,8 @@ export function applyTheme() {
   }
 
   // Custom correct/success color (M3-derived green tonal palette)
-  const successTone = 40
-  const onSuccessTone = 100
+  const successTone = isDark ? 80 : 40
+  const onSuccessTone = isDark ? 20 : 100
   root.style.setProperty('--md-custom-color-correct', hexFromArgb(_successPalette.tone(successTone)))
   root.style.setProperty('--md-custom-color-on-correct', hexFromArgb(_successPalette.tone(onSuccessTone)))
 
@@ -75,7 +76,9 @@ export function applyTheme() {
   root.style.setProperty('--md-sys-color-surface-container-highest',
     hexFromArgb(surfaceAtElevation(scheme, 0.14)))
 
-  root.setAttribute('data-theme', 'light')
+  root.setAttribute('data-theme', isDark ? 'dark' : 'light')
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', hexFromArgb(scheme.background))
+  applySystemBars(hexFromArgb(scheme.background), !isDark)
 }
 
 // Blend surface with primary at a given opacity (M3 elevation tints)
@@ -89,4 +92,12 @@ function surfaceAtElevation(scheme, primaryOpacity) {
   const g = Math.round(sg + (pg - sg) * t)
   const b = Math.round(sb + (pb - sb) * t)
   return (0xff000000 | (r << 16) | (g << 8) | b) >>> 0
+}
+
+export function initTheme() {
+  const saved = localStorage.getItem('mf-theme')
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  const isDark = saved != null ? saved === 'dark' : prefersDark
+  applyTheme(isDark)
+  return isDark ? 'dark' : 'light'
 }

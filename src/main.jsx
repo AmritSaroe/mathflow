@@ -2,11 +2,11 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
-import { applyTheme } from './theme/material'
+import { initTheme } from './theme/material'
 
 // MathFlow uses a single light appearance; keep the palette initialization
 // before the first render so CSS variables are available immediately.
-applyTheme()
+initTheme()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -11,6 +11,7 @@ import TopicDetailSheet from './views/TopicDetailSheet'
 import ReminderSheet from './views/ReminderSheet'
 import SettingsView from './views/SettingsView'
 import { initReminderLifecycle } from './native/notifications'
+import { initTheme, applyTheme } from './theme/material'
 import { TOPICS } from './data/topics'
 
 /* ── M3 screen transition variants ───────────────────── */
@@ -22,6 +23,7 @@ const SCREEN = {
 
 export default function App() {
   const [tab, setTab]             = useState('home')
+  const [theme, setTheme]         = useState(() => initTheme())
   const [selectedTopic, setTopic] = useState(null)
   const [remindersOpen, setRemindersOpen] = useState(false)
   const [remindersRevision, setRemindersRevision] = useState(0)
@@ -33,6 +35,13 @@ export default function App() {
   useEffect(() => {
     initReminderLifecycle().catch(error => console.error('[MathFlow reminders] lifecycle init failed', error))
   }, [])
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    applyTheme(next === 'dark')
+    localStorage.setItem('mf-theme', next)
+  }
 
   /* ── Session lifecycle ─────────────────────────────── */
   function startSession(config) {
@@ -88,6 +97,8 @@ export default function App() {
             <motion.div key="home" variants={SCREEN} initial="initial" animate="animate" exit="exit"
                         style={{ position: 'absolute', inset: 0, overflowY: 'auto' }}>
               <HomeView
+                theme={theme}
+                onToggleTheme={toggleTheme}
                 onSelectTopic={setTopic}
               />
             </motion.div>
@@ -102,6 +113,8 @@ export default function App() {
             <motion.div key="settings" variants={SCREEN} initial="initial" animate="animate" exit="exit"
                         style={{ position: 'absolute', inset: 0, overflowY: 'auto' }}>
               <SettingsView
+                theme={theme}
+                onToggleTheme={toggleTheme}
                 onOpenReminders={() => setRemindersOpen(true)}
                 remindersRevision={remindersRevision}
               />
