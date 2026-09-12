@@ -22,14 +22,16 @@ export function getStreak() {
   return (s.lastDate === d || s.lastDate === y) ? s.count : 0
 }
 
-export function recordActivity(attempted, correct) {
+export function recordActivity(attempted, correct, responseTimes = []) {
   const d = today()
   let activity = {}
   try { activity = JSON.parse(localStorage.getItem(ACTIVITY_KEY) || '{}') } catch {}
-  if (!activity[d]) activity[d] = { attempted: 0, correct: 0, sessions: 0 }
+  if (!activity[d]) activity[d] = { attempted: 0, correct: 0, sessions: 0, responseTimeTotal: 0, responseCount: 0 }
   activity[d].attempted += attempted
   activity[d].correct   += correct
   activity[d].sessions++
+  activity[d].responseTimeTotal = (activity[d].responseTimeTotal || 0) + responseTimes.reduce((sum, time) => sum + time, 0)
+  activity[d].responseCount = (activity[d].responseCount || 0) + responseTimes.length
   const keys = Object.keys(activity).sort()
   if (keys.length > 30) delete activity[keys[0]]
   try { localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activity)) } catch {}

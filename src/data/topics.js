@@ -1,5 +1,5 @@
 import {
-  generateAdd1D1D, generateAdd2D2D, generateAddXY02D, generateAdd3D3D,
+  generateAdd1D1D, generateNumberBonds, generateAdd2D2D, generateAddXY02D, generateAdd3D3D,
   generateComplements, generateMul10, generateSub2D2D, generateSub3D2D, generateSub3D3D,
   generateMul1D1D, generateMul2D1D, generateMul2D2D, generateMul1D3D,
   generateTables, generateSquares, generateCubes,
@@ -11,6 +11,7 @@ import {
 
 export const TOPICS = {
   // Addition
+  add_number_bonds: { name: 'Number Bonds',              section: 'addition',       desc: 'complete totals to 10 or 20',          srs: false, generate: generateNumberBonds },
   add_1d1d:     { name: 'Single digits',           section: 'addition',       desc: 'single digit foundations',        srs: true,  generate: generateAdd1D1D,   pool: buildAdd1D1DPool() },
   add_2d2d:     { name: 'Two-digit addition',      section: 'addition',       desc: 'e.g. 47 + 63',                   srs: false, generate: generateAdd2D2D },
   add_xy0_2d:   { name: 'Hundreds + two digits',       section: 'addition',       desc: 'e.g. 320 + 47',                  srs: false, generate: generateAddXY02D },

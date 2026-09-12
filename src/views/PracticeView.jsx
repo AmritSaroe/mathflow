@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
 import { motion, useAnimation, AnimatePresence } from 'framer-motion'
 import { pickSRSItem, recordSRS } from '../engine/srs'
 import { recordActivity } from '../engine/storage'
@@ -116,6 +116,8 @@ export default function PracticeView({ session, onDone, onExit }) {
   const isDoneRef = useRef(false)
   const stRef     = useRef(st); stRef.current = st
   const qRef      = useRef(question); qRef.current = question
+  const responseStartRef = useRef(null)
+  const responseTimesRef = useRef([])
 
   /* ── Question generation ─────────────────────────────── */
   function genQ() {
@@ -157,6 +159,11 @@ export default function PracticeView({ session, onDone, onExit }) {
   /* ── Init ────────────────────────────────────────────── */
   useEffect(() => { nextQRef.current() }, []) // eslint-disable-line
 
+  // Start timing only after the current question has been painted.
+  useLayoutEffect(() => {
+    if (question) responseStartRef.current = performance.now()
+  }, [question])
+
   /* ── Timer (practice mode only) ──────────────────────── */
   useEffect(() => {
     if (mode !== 'practice') return
@@ -172,9 +179,18 @@ export default function PracticeView({ session, onDone, onExit }) {
   /* ── Done → record activity + notify parent ──────────── */
   useEffect(() => {
     if (st.status === 'done') {
-      recordActivity(st.attempted, st.correct)
+      const responseTimes = responseTimesRef.current
+      recordActivity(st.attempted, st.correct, responseTimes)
       void notifyPracticeCompleted().catch(error => console.error('[MathFlow reminders] practice completion cleanup failed', error))
-      onDone({ correct: st.correct, attempted: st.attempted })
+      onDone({
+        correct: st.correct,
+        attempted: st.attempted,
+        responseTimes,
+        averageResponseTime: responseTimes.length
+          ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length
+          : null,
+        bestResponseTime: responseTimes.length ? Math.min(...responseTimes) : null,
+      })
     }
   }, [st.status]) // eslint-disable-line
 
@@ -210,6 +226,10 @@ export default function PracticeView({ session, onDone, onExit }) {
     if (isDoneRef.current || cur.locked || !val || !qRef.current) return
 
     const isCorrect = parseInt(val) === qRef.current.answer
+    if (responseStartRef.current != null) {
+      responseTimesRef.current.push(Math.max(0, (performance.now() - responseStartRef.current) / 1000))
+      responseStartRef.current = null
+    }
 
     if (isCorrect) {
       if (topic.srs && srsItem && !isDrill) recordSRS(topicId, srsItem, true)

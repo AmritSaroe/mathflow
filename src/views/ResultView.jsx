@@ -42,11 +42,12 @@ function StatCard({ label, value, sub, color, delay }) {
 }
 
 export default function ResultView({ result, onAgain, onHome }) {
-  const { correct, attempted, session } = result
+  const { correct, attempted, session, averageResponseTime, bestResponseTime } = result
   const { topic, mode, timerMins } = session
   const isDrill = mode === 'drill'
 
   const pct = attempted > 0 ? Math.round(correct / attempted * 100) : 0
+  const formatResponseTime = seconds => seconds == null ? '—' : `${seconds.toFixed(1)}s`
 
   const pctColor = pct >= 80
     ? 'var(--md-custom-color-correct)'
@@ -157,6 +158,18 @@ export default function ResultView({ result, onAgain, onHome }) {
             color={pctColor}
             delay={STAGGER_BASE * 4}
           />
+          <StatCard
+            label="Avg response"
+            value={formatResponseTime(averageResponseTime)}
+            sub="speed of recall"
+            delay={STAGGER_BASE * 5}
+          />
+          <StatCard
+            label="Best response"
+            value={formatResponseTime(bestResponseTime)}
+            sub="fastest answer"
+            delay={STAGGER_BASE * 6}
+          />
           {mode === 'practice' && timerMins && (
             <StatCard
               label="Time"
@@ -177,7 +190,7 @@ export default function ResultView({ result, onAgain, onHome }) {
             label="Wrong"
             value={attempted - correct}
             color={attempted - correct > 0 ? 'var(--md-sys-color-error)' : undefined}
-            delay={STAGGER_BASE * 6}
+            delay={STAGGER_BASE * 7}
           />
         </div>
 

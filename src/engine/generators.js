@@ -67,6 +67,25 @@ export function generateAdd1D1D({ a, b }) {
   const ans = a + b
   return { display: `${a} + ${b}`, answer: ans, typeLabel: 'addition', maxDigits: digits(ans) }
 }
+
+// Number Bonds: complete a part-whole equation for totals 10 or 20.
+export function generateNumberBonds() {
+  const T = pick([10, 20])
+  const A = rand(1, T - 1)
+  const B = T - A
+  return {
+    T,
+    A,
+    B,
+    text: `${A} + ? = ${T}`,
+    display: `${A} + ? = ${T}`,
+    answer: B,
+    format: 'part-whole',
+    typeLabel: 'number bonds',
+    maxDigits: digits(B),
+  }
+}
+
 export function generateSub1D1D({ a, b }) {
   const ans = a - b
   return { display: `${a} − ${b}`, answer: ans, typeLabel: 'subtraction', maxDigits: digits(ans) }

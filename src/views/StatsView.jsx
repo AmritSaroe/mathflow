@@ -168,12 +168,24 @@ export default function StatsView() {
   const days = last7Days()
 
   const weekTotals = useMemo(() => {
-    let attempted = 0, correct = 0, sessions = 0
+    let attempted = 0, correct = 0, sessions = 0, responseTimeTotal = 0, responseCount = 0
     for (const day of days) {
       const d = activity[day]
-      if (d) { attempted += d.attempted; correct += d.correct; sessions += d.sessions }
+      if (d) {
+        attempted += d.attempted
+        correct += d.correct
+        sessions += d.sessions
+        responseTimeTotal += d.responseTimeTotal || 0
+        responseCount += d.responseCount || 0
+      }
     }
-    return { attempted, correct, sessions, accuracy: attempted > 0 ? Math.round(correct / attempted * 100) : 0 }
+    return {
+      attempted,
+      correct,
+      sessions,
+      accuracy: attempted > 0 ? Math.round(correct / attempted * 100) : 0,
+      averageResponseTime: responseCount ? responseTimeTotal / responseCount : null,
+    }
   }, [activity]) // eslint-disable-line
 
   const visibleSections = filterSection
@@ -206,6 +218,7 @@ export default function StatsView() {
               { label: weekTotals.attempted.toString(), sub: 'questions' },
               { label: `${weekTotals.accuracy}%`, sub: 'accuracy' },
               { label: weekTotals.sessions.toString(), sub: 'sessions' },
+              { label: weekTotals.averageResponseTime == null ? '—' : `${weekTotals.averageResponseTime.toFixed(1)}s`, sub: 'avg response' },
             ].map(item => (
               <div key={item.sub} style={{ background: 'var(--md-sys-color-surface-container)', borderRadius: 12, padding: '10px 16px', flex: 1, minWidth: 80 }}>
                 <div className="dm-mono" style={{ fontSize: 24, fontWeight: 300, color: 'var(--md-sys-color-on-surface)', lineHeight: 1 }}>{item.label}</div>
